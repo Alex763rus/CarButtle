@@ -1,0 +1,118 @@
+<!-- templates/game.html -->
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Car Battle Game</title>
+    <style>
+        #gameCanvas {
+            border: 1px solid black;
+            background: #f0f0f0;
+        }
+        .game-info {
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+<h1>Car Battle AI</h1>
+
+<div class="game-info">
+    <button onclick="startGame()">Start Game</button>
+    <div id="gameStatus">Ready to start</div>
+</div>
+
+<canvas id="gameCanvas" width="800" height="600"></canvas>
+
+<script src="/webjars/sockjs-client/sockjs.min.js"></script>
+<script src="/webjars/stomp-websocket/stomp.min.js"></script>
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    function connectWebSocket() {
+        const socket = new SockJS('/ws-game');
+        const stompClient = Stomp.over(socket);
+
+        stompClient.connect({}, function(frame) {
+            stompClient.subscribe('/topic/game.state', function(gameState) {
+                const state = JSON.parse(gameState.body);
+                drawGame(state);
+            });
+        });
+
+        return stompClient;
+    }
+
+    function drawGame(gameState) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Отрисовка машинок
+        Object.values(gameState.cars).forEach(car => {
+            drawCar(car);
+        });
+
+        // Отрисовка пуль
+        Object.values(gameState.bullets).forEach(bullet => {
+            drawBullet(bullet);
+        });
+
+        // Обновление статуса
+        updateGameStatus(gameState);
+    }
+
+    function drawCar(car) {
+        const pos = car.position;
+        ctx.save();
+        ctx.translate(pos.x, pos.y);
+        ctx.rotate(pos.angle * Math.PI / 180);
+
+        // Корпус машинки
+        ctx.fillStyle = car.id === 'car1' ? 'blue' : 'red';
+        ctx.fillRect(-15, -10, 30, 20);
+
+        // Пушка
+        ctx.fillStyle = 'black';
+        ctx.fillRect(10, -3, 15, 6);
+
+        ctx.restore();
+
+        // Здоровье
+        ctx.fillStyle = 'green';
+        ctx.fillRect(pos.x - 20, pos.y - 30, car.health / 100 * 40, 5);
+    }
+
+    function drawBullet(bullet) {
+        ctx.fillStyle = 'black';
+        ctx.beginPath();
+        ctx.arc(bullet.position.x, bullet.position.y, 3, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    function updateGameStatus(gameState) {
+        const statusDiv = document.getElementById('gameStatus');
+        if (!gameState.gameRunning) {
+            statusDiv.textContent = 'Game Over';
+        } else {
+            const cars = Object.values(gameState.cars);
+            statusDiv.textContent = cars.map(car =>
+                `Car ${car.id}: ${car.health}HP ${car.ammo}AMMO`
+            ).join(' | ');
+        }
+    }
+
+    function startGame() {
+        fetch('/game/start', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                aiClass1: 'com.game.ai.SimpleCarAI',
+                aiClass2: 'com.game.ai.AdvancedCarAI'
+            })
+        });
+    }
+
+    // Инициализация
+    const stompClient = connectWebSocket();
+</script>
+</body>
+</html>
