@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Car AI Editor</title>
+    <style>
+        .editor-container {
+            margin: 20px;
+            max-width: 1200px;
+        }
+
+        .code-editor {
+            width: 100%;
+            height: 400px;
+            font-family: monospace;
+            padding: 10px;
+        }
+
+        .button {
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+            border: none;
+            border-radius: 4px;
+        }
+
+        .primary {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .secondary {
+            background: #008CBA;
+            color: white;
+        }
+
+        .danger {
+            background: #f44336;
+            color: white;
+        }
+
+        .success {
+            color: green;
+            font-weight: bold;
+        }
+
+        .error {
+            color: red;
+            font-weight: bold;
+        }
+
+        .ai-list {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+
+        .ai-item {
+            margin: 10px 0;
+            padding: 10px;
+            border: 1px solid #eee;
+            border-radius: 3px;
+        }
+
+        .status-loaded {
+            color: green;
+        }
+
+        .status-failed {
+            color: red;
+        }
+
+        .nav-buttons {
+            margin: 20px 0;
+        }
+
+        .editor-section {
+            display: flex;
+            gap: 20px;
+        }
+
+        .code-area {
+            flex: 2;
+        }
+
+        .ai-list-area {
+            flex: 1;
+        }
+    </style>
+</head>
+<body>
+<div class="editor-container">
+    <div class="nav-buttons">
+        <button class="button secondary" onclick="goToGame()">🎮 Back to Game</button>
+        <button class="button secondary" onclick="refreshAIList()">🔄 Refresh List</button>
+    </div>
+
+    <h1>Car AI Code Editor</h1>
+
+    <div class="editor-section">
+        <div class="code-area">
+            <div>
+                <label><strong>AI Name:</strong></label>
+                <input type="text" id="aiName" placeholder="MyCustomAI"
+                       style="padding: 8px; width: 200px; margin-left: 10px;">
+            </div>
+
+            <div style="margin: 15px 0;">
+                <label><strong>AI Code:</strong></label>
+            </div>
+            <textarea id="codeEditor" class="code-editor"></textarea>
+
+            <div style="margin: 15px 0;">
+                <button class="button primary" onclick="loadTemplate()">📝 Load Template</button>
+                <button class="button primary" onclick="compileAI()">⚡ Compile & Load</button>
+                <button class="button secondary" onclick="saveToFile()">💾 Save to File</button>
+                <input type="file" id="fileInput" onchange="loadFromFile()" accept=".java" style="display: none;">
+                <button class="button secondary" onclick="document.getElementById('fileInput').click()">📂 Load from
+                    File
+                </button>
+            </div>
+
+            <div id="statusMessage" style="margin: 15px 0; padding: 10px; min-height: 40px;"></div>
+        </div>
+
+        <div class="ai-list-area">
+            <h3>🚀 Available AIs</h3>
+            <div id="loadedAIs" class="ai-list">
+                <div>Loading...</div>
+            </div>
+
+            <h3>🎯 Built-in AIs</h3>
+            <div style="padding: 10px; background: #f9f9f9; border-radius: 5px;">
+                <div>• Simple AI</div>
+                <div>• Aggressive AI</div>
+                <div>• Defensive AI</div>
+                <div>• Sniper AI</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    async function loadTemplate() {
+        try {
+            const response = await fetch('/ai/template');
+            const template = await response.text();
+            document.getElementById('codeEditor').value = template;
+            showStatus('Template loaded successfully', 'success');
+        } catch (error) {
+            showStatus('Error loading template: ' + error.message, 'error');
+        }
+    }
+
+    async function compileAI() {
+        const aiName = document.getElementById('aiName').value.trim();
+        const code = document.getElementById('codeEditor').value.trim();
+
+        if (!aiName) {
+            showStatus('Please enter AI name', 'error');
+            return;
+        }
+
+        if (!code) {
+            showStatus('Please enter AI code', 'error');
+            return;
+        }
+
+        showStatus('Compiling...', 'success');
+
+        const formData = new FormData();
+        formData.append('aiName', aiName);
+        formData.append('javaCode', code);
+
+        try {
+            const response = await fetch('/ai/upload', {
+                method: 'POST',
+                body: formData
+            });
+
+            const result = await response.json();
+
+            if (result.status === 'success') {
+                showStatus('✅ ' + result.message, 'success');
+                // Обновляем список AI
+                updateAIsList(result.customAIs, result.aiStatuses);
+                // Очищаем форму
+                document.getElementById('aiName').value = '';
+                document.getElementById('codeEditor').value = '';
+
+                // Предлагаем перейти к игре
+                setTimeout(() => {
+                    if (confirm('AI created successfully! Do you want to go to the game?')) {
+                        goToGame();
+                    }
+                }, 1000);
+            } else {
+                showStatus('❌ ' + result.message, 'error');
+            }
+        } catch (error) {
+            showStatus('❌ Network error: ' + error.message, 'error');
+        }
+    }
+
+    function showStatus(message, type) {
+        const statusDiv = document.getElementById('statusMessage');
+        statusDiv.innerHTML = `<span class="${type}">${message}</span>`;
+    }
+
+    function saveToFile() {
+        const code = document.getElementById('codeEditor').value;
+        const aiName = document.getElementById('aiName').value || 'UserCarAI';
+        const blob = new Blob([code], {type: 'text/java'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = aiName + '.java';
+        a.click();
+        URL.revokeObjectURL(url);
+        showStatus('File saved as ' + a.download, 'success');
+    }
+
+    function loadFromFile() {
+        const fileInput = document.getElementById('fileInput');
+        const file = fileInput.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                document.getElementById('codeEditor').value = e.target.result;
+                // Пытаемся извлечь имя AI из имени файла
+                const fileName = file.name.replace('.java', '');
+                document.getElementById('aiName').value = fileName;
+                showStatus('File loaded: ' + file.name, 'success');
+            };
+            reader.readAsText(file);
+        }
+    }
+
+    async function refreshAIList() {
+        try {
+            const response = await fetch('/ai/list');
+            const data = await response.json();
+            updateAIsList(data.customAIs, data.aiStatuses);
+            showStatus('AI list refreshed', 'success');
+        } catch (error) {
+            showStatus('Error refreshing AI list: ' + error.message, 'error');
+        }
+    }
+
+    function updateAIsList(customAIs, statuses) {
+        const listDiv = document.getElementById('loadedAIs');
+
+        if (!customAIs || Object.keys(customAIs).length === 0) {
+            listDiv.innerHTML = '<div>No custom AIs loaded. Create one above!</div>';
+            return;
+        }
+
+        let html = '';
+        Object.entries(customAIs).forEach(([key, name]) => {
+            const status = statuses[key];
+            const statusClass = status.includes('✓') ? 'status-loaded' : 'status-failed';
+
+            html += `
+                    <div class="ai-item">
+                        <div><strong>${name}</strong> (${key})</div>
+                        <div class="${statusClass}">${status}</div>
+                        <div style="margin-top: 5px;">
+                            <button class="button danger" onclick="deleteAI('${key}')">Delete</button>
+                            <button class="button secondary" onclick="useInGame('${key}')">Use in Game</button>
+                        </div>
+                    </div>
+                `;
+        });
+        listDiv.innerHTML = html;
+    }
+
+    async function deleteAI(aiName) {
+        if (confirm(`Delete AI "${aiName}"?`)) {
+            try {
+                const response = await fetch(`/ai/${aiName}`, {method: 'DELETE'});
+                const result = await response.json();
+
+                if (result.status === 'success') {
+                    showStatus('AI deleted successfully', 'success');
+                    updateAIsList(result.customAIs, result.aiStatuses);
+                } else {
+                    showStatus('Failed to delete AI: ' + result.message, 'error');
+                }
+            } catch (error) {
+                showStatus('Network error: ' + error.message, 'error');
+            }
+        }
+    }
+
+    function useInGame(aiName) {
+        if (confirm(`Use "${aiName}" in the game?`)) {
+            // Сохраняем выбранный AI
+            localStorage.setItem('selectedAI', `custom_${aiName}`);
+
+            // Показываем инструкцию
+            showStatus(`✅ AI "${aiName}" selected! Go to the game and choose it from the dropdown.`, 'success');
+
+            // Опционально: автоматически переходим к игре
+            setTimeout(() => {
+                if (confirm('Go to game now?')) {
+                    goToGame();
+                }
+            }, 1000);
+        }
+    }
+
+    function goToGame() {
+        window.location.href = '/';
+    }
+
+    // Загружаем шаблон и список AI при открытии страницы
+    window.addEventListener('load', function () {
+        loadTemplate();
+        refreshAIList();
+    });
+</script>
+</body>
+</html>

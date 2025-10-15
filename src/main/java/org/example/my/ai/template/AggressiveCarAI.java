@@ -1,5 +1,6 @@
-package org.example.my.ai;
+package org.example.my.ai.template;
 
+import org.example.my.ai.CarAI;
 import org.example.my.model.Bullet;
 import org.example.my.model.Car;
 import org.example.my.model.CarAction;
