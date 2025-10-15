@@ -1,8 +1,10 @@
 package org.example.my.model;
 
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Data
+@NoArgsConstructor
 public class Car {
     private String id;
     private Position position;
@@ -10,7 +12,8 @@ public class Car {
     private int ammo;
     private boolean isAlive;
     private long lastShotTime;
-    private String aiClass; // класс ИИ для управления
+    private String aiClass;
+    private String aiName; // имя ИИ для отображения
 
     public Car(String id, double startX, double startY, String aiClass) {
         this.id = id;
@@ -19,9 +22,10 @@ public class Car {
         this.ammo = 50;
         this.isAlive = true;
         this.aiClass = aiClass;
+        this.lastShotTime = 0;
     }
 
     public boolean canShoot() {
-        return ammo > 0 && System.currentTimeMillis() - lastShotTime > 1000;
+        return ammo > 0 && (System.currentTimeMillis() - lastShotTime > 1000);
     }
 }

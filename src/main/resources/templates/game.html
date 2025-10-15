@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Car Battle Game</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .ai-selector {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .ai-option {
+            flex: 1;
+        }
+
+        select, button {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+
+        #gameCanvas {
+            border: 2px solid #333;
+            background: #e8e8e8;
+            display: block;
+            margin: 0 auto;
+        }
+
+        .game-info {
+            margin-top: 15px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 4px;
+            border-left: 4px solid #007bff;
+        }
+
+        .status {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .car-stats {
+            padding: 8px;
+            border-radius: 4px;
+            background: white;
+        }
+
+        .car1-stats {
+            border-left: 3px solid blue;
+        }
+
+        .car2-stats {
+            border-left: 3px solid red;
+        }
+
+        .connection-status {
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            margin-bottom: 10px;
+        }
+
+        .connected {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .disconnected {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .debug-info {
+            margin-top: 10px;
+            padding: 10px;
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 4px;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .car-position {
+            background: #e9ecef;
+            padding: 5px;
+            margin: 2px 0;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>🚗 Car Battle Game 🚗</h1>
+
+    <div id="connectionStatus" class="connection-status disconnected">
+        Disconnected
+    </div>
+
+    <div class="ai-selector">
+        <div class="ai-option">
+            <label><strong>Car 1 AI:</strong></label>
+            <select id="ai1Select">
+                <option value="org.example.my.ai.SimpleCarAI">Simple AI</option>
+<!--                <option value="org.example.my.ai.AdvancedCarAI">Advanced AI</option>-->
+<!--                <option value="org.example.my.ai.RandomCarAI">Random AI</option>-->
+<!--                <option value="org.example.my.ai.AggressiveCarAI">Aggressive AI</option>-->
+            </select>
+        </div>
+        <div class="ai-option">
+            <label><strong>Car 2 AI:</strong></label>
+            <select id="ai2Select">
+                <option value="org.example.my.ai.SimpleCarAI">Simple AI</option>
+<!--                <option value="org.example.my.ai.AdvancedCarAI">Advanced AI</option>-->
+<!--                <option value="org.example.my.ai.RandomCarAI">Random AI</option>-->
+<!--                <option value="org.example.my.ai.AggressiveCarAI">Aggressive AI</option>-->
+            </select>
+        </div>
+    </div>
+
+    <div class="controls">
+        <button onclick="startGame()" id="startBtn">Start Game</button>
+        <button onclick="stopGame()" id="stopBtn" disabled>Stop Game</button>
+        <button onclick="resetGame()" id="resetBtn">Reset Game</button>
+        <button onclick="toggleDebug()" id="debugBtn">Show Debug</button>
+    </div>
+
+    <canvas id="gameCanvas" width="800" height="600"></canvas>
+
+    <div class="game-info">
+        <div class="status" id="gameStatus">Ready to start</div>
+        <div class="stats">
+            <div class="car-stats car1-stats" id="car1Stats">
+                <strong>Car 1 (Blue):</strong><br>
+                Health: 100<br>
+                Ammo: 50<br>
+                Status: Ready
+            </div>
+            <div class="car-stats car2-stats" id="car2Stats">
+                <strong>Car 2 (Red):</strong><br>
+                Health: 100<br>
+                Ammo: 50<br>
+                Status: Ready
+            </div>
+        </div>
+    </div>
+
+    <div id="debugInfo" class="debug-info" style="display: none;">
+        <strong>Debug Information:</strong>
+        <div id="debugContent"></div>
+    </div>
+</div>
+
+<script src="/webjars/sockjs-client/sockjs.min.js"></script>
+<script src="/webjars/stomp-websocket/stomp.min.js"></script>
+
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    let stompClient = null;
+    let sessionId = null;
+    let isConnected = false;
+    let debugMode = false;
+    let lastGameState = null;
+
+    function connectWebSocket() {
+        console.log('Connecting to WebSocket...');
+
+        const socket = new SockJS('/ws-game');
+        stompClient = Stomp.over(socket);
+
+        stompClient.debug = null;
+
+        stompClient.connect({}, function(frame) {
+            console.log('WebSocket connected successfully!');
+            isConnected = true;
+
+            sessionId = 'user-' + Math.random().toString(36).substr(2, 9);
+            console.log('Session ID:', sessionId);
+
+            updateConnectionStatus(true);
+
+            stompClient.subscribe('/topic/game.state', function(message) {
+                try {
+                    const gameState = JSON.parse(message.body);
+                    lastGameState = gameState;
+
+                    if (debugMode) {
+                        updateDebugInfo(gameState);
+                    }
+                    drawGame(gameState);
+                    updateUI(gameState);
+                } catch (e) {
+                    console.error('Error parsing game state:', e);
+                }
+            });
+
+            console.log('Subscribed to game state updates');
+
+        }, function(error) {
+            console.error('WebSocket connection error:', error);
+            isConnected = false;
+            updateConnectionStatus(false);
+            setTimeout(connectWebSocket, 3000);
+        });
+    }
+
+    function updateConnectionStatus(connected) {
+        const statusElement = document.getElementById('connectionStatus');
+        if (connected) {
+            statusElement.textContent = 'Connected ✓';
+            statusElement.className = 'connection-status connected';
+        } else {
+            statusElement.textContent = 'Disconnected ✗';
+            statusElement.className = 'connection-status disconnected';
+        }
+    }
+
+    function toggleDebug() {
+        debugMode = !debugMode;
+        const debugInfo = document.getElementById('debugInfo');
+        const debugBtn = document.getElementById('debugBtn');
+
+        if (debugMode) {
+            debugInfo.style.display = 'block';
+            debugBtn.textContent = 'Hide Debug';
+            if (lastGameState) {
+                updateDebugInfo(lastGameState);
+            }
+        } else {
+            debugInfo.style.display = 'none';
+            debugBtn.textContent = 'Show Debug';
+        }
+    }
+
+    function updateDebugInfo(gameState) {
+        const debugContent = document.getElementById('debugContent');
+        let debugText = '';
+
+        debugText += `<strong>Game State:</strong><br>`;
+        debugText += `Running: ${gameState.gameRunning}<br>`;
+        debugText += `Cars: ${Object.keys(gameState.cars || {}).length}<br>`;
+        debugText += `Bullets: ${Object.keys(gameState.bullets || {}).length}<br>`;
+
+        if (gameState.cars) {
+            debugText += `<br><strong>Cars:</strong><br>`;
+            Object.entries(gameState.cars).forEach(([carId, car]) => {
+                debugText += `<div class="car-position">`;
+                debugText += `<strong>${carId}:</strong> `;
+                debugText += `Alive: ${car.isAlive}, `;
+                if (car.position) {
+                    debugText += `Pos: (${Math.round(car.position.x)}, ${Math.round(car.position.y)}) `;
+                    debugText += `Angle: ${Math.round(car.position.angle)}°, `;
+                } else {
+                    debugText += `Position: NULL, `;
+                }
+                debugText += `Health: ${car.health}, Ammo: ${car.ammo}`;
+                debugText += `</div>`;
+            });
+        }
+
+        if (gameState.bullets) {
+            debugText += `<br><strong>Bullets:</strong> ${Object.keys(gameState.bullets).length}`;
+        }
+
+        debugContent.innerHTML = debugText;
+    }
+
+    function startGame() {
+        if (!isConnected || !stompClient || !stompClient.connected) {
+            alert('WebSocket not connected. Please wait for connection or refresh the page.');
+            return;
+        }
+
+        const ai1 = document.getElementById('ai1Select').value;
+        const ai2 = document.getElementById('ai2Select').value;
+
+        console.log('Starting game with AI1:', ai1, 'AI2:', ai2);
+
+        stompClient.send('/app/game.start', {}, JSON.stringify({
+            aiClass1: ai1,
+            aiClass2: ai2
+        }));
+
+        document.getElementById('startBtn').disabled = true;
+        document.getElementById('stopBtn').disabled = false;
+        document.getElementById('gameStatus').textContent = 'Game starting...';
+    }
+
+    function stopGame() {
+        if (isConnected && stompClient && stompClient.connected) {
+            stompClient.send('/app/game.stop', {}, JSON.stringify({}));
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
+        }
+    }
+
+    function resetGame() {
+        if (isConnected && stompClient && stompClient.connected) {
+            stompClient.send('/app/game.reset', {}, JSON.stringify({}));
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
+            document.getElementById('gameStatus').textContent = 'Game reset';
+        }
+    }
+
+    function drawGame(gameState) {
+        // Очищаем canvas
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Рисуем фон поля
+        ctx.fillStyle = '#e8e8e8';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Рисуем границы
+        ctx.strokeStyle = '#333';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(0, 0, canvas.width, canvas.height);
+
+        // Рисуем машинки ПЕРВЫМИ (под пулями)
+        if (gameState.cars) {
+            Object.values(gameState.cars).forEach(car => {
+                if (car && car.position) {
+                    drawCar(car);
+                }
+            });
+        }
+
+        // Рисуем пули ПОСЛЕ машинок (сверху)
+        if (gameState.bullets) {
+            Object.values(gameState.bullets).forEach(bullet => {
+                if (bullet && bullet.position) {
+                    drawBullet(bullet);
+                }
+            });
+        }
+
+        // Рисуем отладочную информацию на canvas
+        if (debugMode) {
+            drawDebugInfo(gameState);
+        }
+    }
+
+
+    function drawHealthBar(car) {
+        const pos = car.position;
+        const healthWidth = 50;
+        const healthPercent = (car.health || 0) / 100;
+
+        // Фон полоски здоровья
+        ctx.fillStyle = '#555555';
+        ctx.fillRect(pos.x - healthWidth/2, pos.y - 45, healthWidth, 8);
+
+        // Сама полоска здоровья
+        if (healthPercent > 0.6) {
+            ctx.fillStyle = '#4CAF50'; // зеленый
+        } else if (healthPercent > 0.3) {
+            ctx.fillStyle = '#FF9800'; // оранжевый
+        } else {
+            ctx.fillStyle = '#F44336'; // красный
+        }
+
+        ctx.fillRect(pos.x - healthWidth/2, pos.y - 45, healthWidth * healthPercent, 8);
+
+        // Обводка полоски здоровья
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(pos.x - healthWidth/2, pos.y - 45, healthWidth, 8);
+    }
+
+    function drawBullet(bullet) {
+        const pos = bullet.position;
+        ctx.fillStyle = '#FFD700'; // золотой
+        ctx.beginPath();
+        ctx.arc(pos.x, pos.y, 5, 0, Math.PI * 2); // увеличен размер
+        ctx.fill();
+
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+    }
+
+    function drawDebugInfo(gameState) {
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+        ctx.fillRect(10, 10, 200, 100);
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '12px Arial';
+        ctx.textAlign = 'left';
+
+        let y = 25;
+        ctx.fillText(`Cars: ${Object.keys(gameState.cars || {}).length}`, 15, y);
+        y += 15;
+        ctx.fillText(`Bullets: ${Object.keys(gameState.bullets || {}).length}`, 15, y);
+        y += 15;
+
+        if (gameState.cars) {
+            Object.values(gameState.cars).forEach(car => {
+                if (car.position) {
+                    ctx.fillText(`${car.id}: (${Math.round(car.position.x)}, ${Math.round(car.position.y)})`, 15, y);
+                    y += 12;
+                }
+            });
+        }
+    }
+
+    function updateUI(gameState) {
+        const statusDiv = document.getElementById('gameStatus');
+        const car1Stats = document.getElementById('car1Stats');
+        const car2Stats = document.getElementById('car2Stats');
+
+        if (!gameState.gameRunning) {
+            if (gameState.winner) {
+                statusDiv.textContent = `🎉 Game Over! Winner: ${gameState.winner} 🎉`;
+                statusDiv.style.color = '#28a745';
+            } else {
+                statusDiv.textContent = 'Game stopped';
+                statusDiv.style.color = '#6c757d';
+            }
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
+        } else {
+            statusDiv.textContent = 'Game running...';
+            statusDiv.style.color = '#007bff';
+            document.getElementById('startBtn').disabled = true;
+            document.getElementById('stopBtn').disabled = false;
+        }
+
+        // Обновляем статистику машинок
+        const car1 = gameState.cars ? gameState.cars['car1'] : null;
+        const car2 = gameState.cars ? gameState.cars['car2'] : null;
+
+        updateCarStats(car1Stats, car1, 'Car 1 (Blue)');
+        updateCarStats(car2Stats, car2, 'Car 2 (Red)');
+    }
+
+    function drawCar(car) {
+        // Исправлено: проверяем isAlive с учетом возможного undefined
+        if (car.isAlive === false) {
+            return;
+        }
+
+        const pos = car.position;
+
+        // Проверяем валидность позиции
+        if (pos.x === undefined || pos.y === undefined) {
+            console.warn('Invalid car position:', car);
+            return;
+        }
+
+        ctx.save();
+        ctx.translate(pos.x, pos.y);
+        ctx.rotate((pos.angle || 0) * Math.PI / 180);
+
+        // Корпус машинки
+        ctx.fillStyle = car.id === 'car1' ? '#1e90ff' : '#dc143c';
+        ctx.fillRect(-20, -12, 40, 24);
+
+        // Детали машинки
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(-15, -8, 12, 16);
+
+        // Пушка
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(12, -4, 18, 8);
+
+        // Колеса
+        ctx.fillStyle = '#333333';
+        ctx.fillRect(-15, -15, 8, 6);
+        ctx.fillRect(-15, 9, 8, 6);
+        ctx.fillRect(7, -15, 8, 6);
+        ctx.fillRect(7, 9, 8, 6);
+
+        ctx.restore();
+
+        // Полоска здоровья
+        drawHealthBar(car);
+
+        // Имя машинки
+        ctx.fillStyle = car.id === 'car1' ? '#1e90ff' : '#dc143c';
+        ctx.font = 'bold 14px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(car.id.toUpperCase(), pos.x, pos.y - 35);
+    }
+
+    function updateCarStats(statsElement, car, title) {
+        if (car) {
+            // Исправлено: учитываем undefined для isAlive
+            const isAlive = car.isAlive !== false; // считаем alive если не false
+            const status = isAlive ? 'Alive' : 'Destroyed';
+            const aiName = car.aiName || 'Unknown AI';
+            statsElement.innerHTML = `
+            <strong>${title}: ${aiName}</strong><br>
+            Health: ${car.health}<br>
+            Ammo: ${car.ammo}<br>
+            Status: ${status}
+        `;
+            statsElement.style.opacity = isAlive ? '1' : '0.6';
+        } else {
+            statsElement.innerHTML = `
+            <strong>${title}:</strong><br>
+            Not spawned
+        `;
+            statsElement.style.opacity = '0.6';
+        }
+    }
+    // Инициализация при загрузке страницы
+    window.onload = function() {
+        console.log('Initializing Car Battle Game...');
+        connectWebSocket();
+    };
+
+    // Периодическая проверка соединения
+    setInterval(function() {
+        if (stompClient && !stompClient.connected && isConnected) {
+            console.log('Connection lost, reconnecting...');
+            isConnected = false;
+            updateConnectionStatus(false);
+            connectWebSocket();
+        }
+    }, 5000);
+</script>
+</body>
+</html>
