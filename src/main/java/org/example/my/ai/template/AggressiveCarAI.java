@@ -17,6 +17,15 @@ public class AggressiveCarAI implements CarAI {
 
     @Override
     public CarAction decideAction(Car myCar, Car opponentCar, Collection<Bullet> bullets) {
+        // Если наш танк мертв - ничего не делаем
+        if (!myCar.isAlive()) {
+            return new CarAction(CarAction.ActionType.IDLE);
+        }
+
+        // Если противник мертв - ищем другую цель или останавливаемся
+        if (opponentCar == null || !opponentCar.isAlive()) {
+            return new CarAction(CarAction.ActionType.IDLE);
+        }
         if (!myCar.isAlive() || opponentCar == null || !opponentCar.isAlive()) {
             return new CarAction(CarAction.ActionType.IDLE);
         }

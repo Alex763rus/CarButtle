@@ -217,6 +217,7 @@ public class GameEngine {
         Car player1 = cars.get("player1");
         Car player2 = cars.get("player2");
 
+        // Всегда возвращаем данные о танках, даже убитых
         if (player1 != null) {
             state.put("player1", Map.of(
                     "x", player1.getPosition().getX(),

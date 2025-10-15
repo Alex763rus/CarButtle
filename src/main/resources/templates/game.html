@@ -271,88 +271,6 @@
         }
     }
 
-    function renderGame() {
-        // Очистка canvas
-        ctx.fillStyle = '#e8f4f8';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        // Отрисовка сетки
-        ctx.strokeStyle = '#d1e7f0';
-        ctx.lineWidth = 1;
-        for (let x = 0; x <= canvas.width; x += 50) {
-            ctx.beginPath();
-            ctx.moveTo(x, 0);
-            ctx.lineTo(x, canvas.height);
-            ctx.stroke();
-        }
-        for (let y = 0; y <= canvas.height; y += 50) {
-            ctx.beginPath();
-            ctx.moveTo(0, y);
-            ctx.lineTo(canvas.width, y);
-            ctx.stroke();
-        }
-
-        // Отрисовка пуль
-        if (gameState.bullets) {
-            gameState.bullets.forEach(bullet => {
-                drawBullet(bullet.x, bullet.y, bullet.angle);
-            });
-        }
-
-        // Проверяем коллизию для отрисовки
-        const collision = checkCollision(gameState.player1, gameState.player2);
-
-        // Отрисовка машинок из gameState
-        if (gameState.player1 && gameState.player1.alive) {
-            const color = collision ? 'purple' : 'blue';
-            drawCar(gameState.player1.x, gameState.player1.y, gameState.player1.angle, color, gameState.player1.name);
-        }
-
-        if (gameState.player2 && gameState.player2.alive) {
-            const color = collision ? 'orange' : 'red';
-            drawCar(gameState.player2.x, gameState.player2.y, gameState.player2.angle, color, gameState.player2.name);
-        }
-
-        // Отрисовка HUD
-        ctx.fillStyle = 'black';
-        ctx.font = '16px Arial';
-        const canShoot1 = gameState.player1.canShoot ? 'READY' : 'RELOAD';
-        const canShoot2 = gameState.player2.canShoot ? 'READY' : 'RELOAD';
-
-        ctx.fillText(`Player 1 (Blue) - ${gameState.player1.health}HP [${canShoot1}]`, 10, 20);
-        ctx.fillText(`Player 2 (Red) - ${gameState.player2.health}HP [${canShoot2}]`, 550, 20);
-
-        // Статус игры и коллизии
-        ctx.fillText(`Game: ${gameRunning ? 'RUNNING' : 'STOPPED'} | Bullets: ${gameState.bullets ? gameState.bullets.length : 0}`, 300, 20);
-
-        if (collision) {
-            ctx.fillStyle = 'red';
-            ctx.font = 'bold 18px Arial';
-            ctx.textAlign = 'center';
-            ctx.fillText('COLLISION!', canvas.width / 2, 45);
-            ctx.textAlign = 'left';
-        }
-    }
-
-    function drawBullet(x, y, angle) {
-        ctx.save();
-        ctx.translate(x, y);
-        ctx.rotate(angle * Math.PI / 180);
-
-        // Пуля - маленький желтый прямоугольник
-        ctx.fillStyle = 'yellow';
-        ctx.fillRect(0, -2, 8, 4);
-
-        // Эффект трассера
-        ctx.strokeStyle = 'orange';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(-5, 0);
-        ctx.lineTo(0, 0);
-        ctx.stroke();
-
-        ctx.restore();
-    }
 
     function drawCar(x, y, angle, color, name) {
         ctx.save();
@@ -400,40 +318,161 @@
         return distance < 40;
     }
 
-    function drawCar(x, y, angle, color, name) {
+    function renderGame() {
+        // Очистка canvas
+        ctx.fillStyle = '#e8f4f8';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Отрисовка сетки
+        ctx.strokeStyle = '#d1e7f0';
+        ctx.lineWidth = 1;
+        for (let x = 0; x <= canvas.width; x += 50) {
+            ctx.beginPath();
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, canvas.height);
+            ctx.stroke();
+        }
+        for (let y = 0; y <= canvas.height; y += 50) {
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            ctx.lineTo(canvas.width, y);
+            ctx.stroke();
+        }
+
+        // Отрисовка пуль
+        if (gameState.bullets) {
+            gameState.bullets.forEach(bullet => {
+                drawBullet(bullet.x, bullet.y, bullet.angle);
+            });
+        }
+
+        // Отрисовка машинок из gameState
+        if (gameState.player1) {
+            const isAlive = gameState.player1.alive;
+            const color = isAlive ? 'blue' : 'gray';
+            const name = isAlive ? gameState.player1.name : gameState.player1.name + " (DEAD)";
+            drawCar(gameState.player1.x, gameState.player1.y, gameState.player1.angle, color, name, isAlive);
+        }
+
+        if (gameState.player2) {
+            const isAlive = gameState.player2.alive;
+            const color = isAlive ? 'red' : 'gray';
+            const name = isAlive ? gameState.player2.name : gameState.player2.name + " (DEAD)";
+            drawCar(gameState.player2.x, gameState.player2.y, gameState.player2.angle, color, name, isAlive);
+        }
+
+        // Отрисовка HUD
+        ctx.fillStyle = 'black';
+        ctx.font = '16px Arial';
+
+        const player1Status = gameState.player1.alive ?
+            `Player 1 (Blue) - ${gameState.player1.health}HP` :
+            `Player 1 (Blue) - DESTROYED`;
+
+        const player2Status = gameState.player2.alive ?
+            `Player 2 (Red) - ${gameState.player2.health}HP` :
+            `Player 2 (Red) - DESTROYED`;
+
+        ctx.fillText(player1Status, 10, 20);
+        ctx.fillText(player2Status, 550, 20);
+
+        // Статус игры
+        ctx.fillText(`Game: ${gameRunning ? 'RUNNING' : 'STOPPED'} | Bullets: ${gameState.bullets ? gameState.bullets.length : 0}`, 300, 20);
+
+        // Отображение победителя
+        if (!gameState.player1.alive && !gameState.player2.alive) {
+            ctx.fillStyle = 'purple';
+            ctx.font = 'bold 24px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('DRAW!', canvas.width / 2, 50);
+            ctx.textAlign = 'left';
+        } else if (!gameState.player1.alive) {
+            ctx.fillStyle = 'red';
+            ctx.font = 'bold 24px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('PLAYER 2 WINS!', canvas.width / 2, 50);
+            ctx.textAlign = 'left';
+        } else if (!gameState.player2.alive) {
+            ctx.fillStyle = 'blue';
+            ctx.font = 'bold 24px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('PLAYER 1 WINS!', canvas.width / 2, 50);
+            ctx.textAlign = 'left';
+        }
+    }
+
+    function drawCar(x, y, angle, color, name, isAlive) {
         ctx.save();
         ctx.translate(x, y);
         ctx.rotate(angle * Math.PI / 180);
 
-        // Кузов машины
-        ctx.fillStyle = color;
-        ctx.fillRect(-15, -10, 30, 20);
+        if (isAlive) {
+            // Живой танк - обычная отрисовка
+            ctx.fillStyle = color;
+            ctx.fillRect(-15, -10, 30, 20);
 
-        // Ветровое стекло
-        ctx.fillStyle = '#aaccff';
-        ctx.fillRect(-10, -8, 20, 8);
+            ctx.fillStyle = '#aaccff';
+            ctx.fillRect(-10, -8, 20, 8);
 
-        // Дуло танка
-        ctx.fillStyle = '#333';
-        ctx.fillRect(10, -2, 15, 4);
+            ctx.fillStyle = '#333';
+            ctx.fillRect(10, -2, 15, 4);
+        } else {
+            // Убитый танк - черный обводка и прозрачный
+            ctx.strokeStyle = 'black';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(-15, -10, 30, 20);
+
+            ctx.fillStyle = color + '80'; // Прозрачный цвет
+            ctx.fillRect(-15, -10, 30, 20);
+
+            // Перечеркнутый крестиком
+            ctx.strokeStyle = 'red';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(-12, -7);
+            ctx.lineTo(12, 7);
+            ctx.moveTo(12, -7);
+            ctx.lineTo(-12, 7);
+            ctx.stroke();
+        }
 
         ctx.restore();
 
-        // Зона коллизии (прозрачный круг)
-        ctx.strokeStyle = color;
-        ctx.lineWidth = 1;
-        ctx.setLineDash([5, 5]);
-        ctx.beginPath();
-        ctx.arc(x, y, 20, 0, 2 * Math.PI);
-        ctx.stroke();
-        ctx.setLineDash([]);
+        // Зона коллизии (только для живых танков)
+        if (isAlive) {
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 1;
+            ctx.setLineDash([5, 5]);
+            ctx.beginPath();
+            ctx.arc(x, y, 20, 0, 2 * Math.PI);
+            ctx.stroke();
+            ctx.setLineDash([]);
+        }
 
-        // Имя и здоровье под машиной
-        ctx.fillStyle = 'black';
-        ctx.font = '12px Arial';
+        // Имя и статус под машиной
+        ctx.fillStyle = isAlive ? 'black' : 'red';
+        ctx.font = isAlive ? '12px Arial' : 'bold 12px Arial';
         ctx.textAlign = 'center';
-        ctx.fillText(`${name} (${Math.round(x)},${Math.round(y)})`, x, y + 40);
+        ctx.fillText(name, x, y + 40);
         ctx.textAlign = 'left';
+    }
+
+    function drawBullet(x, y, angle) {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(angle * Math.PI / 180);
+
+        ctx.fillStyle = 'yellow';
+        ctx.fillRect(0, -2, 8, 4);
+
+        ctx.strokeStyle = 'orange';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(-5, 0);
+        ctx.lineTo(0, 0);
+        ctx.stroke();
+
+        ctx.restore();
     }
 
     function openAIEditor() {
