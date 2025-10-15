@@ -161,18 +161,18 @@
             <label><strong>Car 1 AI:</strong></label>
             <select id="ai1Select">
                 <option value="org.example.my.ai.SimpleCarAI">Simple AI</option>
-<!--                <option value="org.example.my.ai.AdvancedCarAI">Advanced AI</option>-->
-<!--                <option value="org.example.my.ai.RandomCarAI">Random AI</option>-->
-<!--                <option value="org.example.my.ai.AggressiveCarAI">Aggressive AI</option>-->
+                <option value="org.example.my.ai.AggressiveCarAI">Advanced AI</option>
+                <option value="org.example.my.ai.DefensiveCarAI">Random AI</option>
+                <option value="org.example.my.ai.SniperCarAI">SniperCarAI AI</option>
             </select>
         </div>
         <div class="ai-option">
             <label><strong>Car 2 AI:</strong></label>
             <select id="ai2Select">
                 <option value="org.example.my.ai.SimpleCarAI">Simple AI</option>
-<!--                <option value="org.example.my.ai.AdvancedCarAI">Advanced AI</option>-->
-<!--                <option value="org.example.my.ai.RandomCarAI">Random AI</option>-->
-<!--                <option value="org.example.my.ai.AggressiveCarAI">Aggressive AI</option>-->
+                <option value="org.example.my.ai.AggressiveCarAI">Advanced AI</option>
+                <option value="org.example.my.ai.DefensiveCarAI">Random AI</option>
+                <option value="org.example.my.ai.SniperCarAI">SniperCarAI AI</option>
             </select>
         </div>
     </div>
@@ -494,8 +494,12 @@
     }
 
     function drawCar(car) {
-        // Исправлено: проверяем isAlive с учетом возможного undefined
-        if (car.isAlive === false) {
+        // Универсальная проверка - работает с isAlive, alive, или undefined
+        const isCarAlive = (car.alive !== undefined ? car.alive : car.isAlive) !== false;
+
+        if (!isCarAlive) {
+            // Рисуем destroyed машинку
+            drawDestroyedCar(car);
             return;
         }
 
@@ -540,6 +544,46 @@
         ctx.font = 'bold 14px Arial';
         ctx.textAlign = 'center';
         ctx.fillText(car.id.toUpperCase(), pos.x, pos.y - 35);
+
+        // Зона столкновения (для debug)
+        if (debugMode) {
+            ctx.strokeStyle = car.id === 'car1' ? 'rgba(0, 0, 255, 0.3)' : 'rgba(255, 0, 0, 0.3)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.arc(pos.x, pos.y, 20, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+    }
+
+    function drawDestroyedCar(car) {
+        const pos = car.position;
+
+        if (pos.x === undefined || pos.y === undefined) return;
+
+        ctx.save();
+        ctx.translate(pos.x, pos.y);
+
+        // Destroyed машинка - серый цвет и крестик
+        ctx.fillStyle = '#666666';
+        ctx.fillRect(-15, -10, 30, 20);
+
+        // Красный крестик
+        ctx.strokeStyle = '#ff0000';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(-10, -8);
+        ctx.lineTo(10, 8);
+        ctx.moveTo(10, -8);
+        ctx.lineTo(-10, 8);
+        ctx.stroke();
+
+        ctx.restore();
+
+        // Текст "DESTROYED"
+        ctx.fillStyle = '#ff0000';
+        ctx.font = 'bold 12px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('DESTROYED', pos.x, pos.y - 25);
     }
 
     function updateCarStats(statsElement, car, title) {

@@ -1,7 +1,5 @@
 package org.example.my.service;
 
-import org.example.my.ai.SimpleCarAI;
-import org.example.my.controller.GameController;
 import org.example.my.model.*;
 import org.example.my.ai.CarAI;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,12 +24,13 @@ public class GameService {
     private static final double BULLET_SPEED = 8.0;
     private static final int FIELD_WIDTH = 800;
     private static final int FIELD_HEIGHT = 600;
+    private static final double CAR_RADIUS = 20.0;
+    private static final double MIN_DISTANCE_BETWEEN_CARS = CAR_RADIUS * 2.5;
 
     /**
      * Запуск новой игры
      */
     public void startGame(String aiClass1, String aiClass2) {
-        // Проверка входных параметров
         if (aiClass1 == null || aiClass1.trim().isEmpty()) {
             throw new IllegalArgumentException("AI class 1 cannot be null or empty");
         }
@@ -43,14 +42,14 @@ public class GameService {
 
         resetGame();
 
-        // Создаем машинки в разных углах поля
         Car car1 = new Car("car1", 100, 100, aiClass1);
-        Car car2 = new Car("car2", 700, 500, aiClass2);
+        Car car2 = new Car("car2", FIELD_WIDTH - 100, FIELD_HEIGHT - 100, aiClass2);
+
+        adjustCarPositions(car1, car2);
 
         gameState.getCars().put(car1.getId(), car1);
         gameState.getCars().put(car2.getId(), car2);
 
-        // Создаем экземпляры ИИ
         try {
             createAIInstance(car1);
             createAIInstance(car2);
@@ -64,46 +63,20 @@ public class GameService {
         gameState.setGameStartTime(System.currentTimeMillis());
         gameState.setWinner(null);
 
-        // Запускаем игровой цикл
         startGameLoop();
 
         System.out.println("Game started successfully with cars: " + gameState.getCars().keySet());
     }
-    /**
-     * Сброс игры в начальное состояние
-     */
-    public void resetGame() {
-        stopGame();
-
-        // Очищаем состояние игры
-        gameState.getCars().clear();
-        gameState.getBullets().clear();
-        gameState.setGameRunning(false);
-        gameState.setGameStartTime(0);
-        gameState.setWinner(null);
-        gameState.setGameDuration(0);
-
-        // Очищаем экземпляры ИИ
-        aiInstances.clear();
-    }
 
     /**
-     * Остановка текущей игры
+     * Корректировка позиций машинок при спавне
      */
-    public void stopGame() {
-        gameState.setGameRunning(false);
+    private void adjustCarPositions(Car car1, Car car2) {
+        double distance = calculateDistance(car1.getPosition(), car2.getPosition());
 
-        // Останавливаем игровой цикл
-        if (gameLoop != null && !gameLoop.isShutdown()) {
-            gameLoop.shutdown();
-            try {
-                if (!gameLoop.awaitTermination(2, TimeUnit.SECONDS)) {
-                    gameLoop.shutdownNow();
-                }
-            } catch (InterruptedException e) {
-                gameLoop.shutdownNow();
-                Thread.currentThread().interrupt();
-            }
+        if (distance < MIN_DISTANCE_BETWEEN_CARS) {
+            car2.getPosition().setX(FIELD_WIDTH - 150);
+            car2.getPosition().setY(FIELD_HEIGHT - 150);
         }
     }
 
@@ -112,7 +85,7 @@ public class GameService {
      */
     private void startGameLoop() {
         gameLoop = Executors.newScheduledThreadPool(1);
-        gameLoop.scheduleAtFixedRate(this::gameTick, 0, 50, TimeUnit.MILLISECONDS); // 20 FPS
+        gameLoop.scheduleAtFixedRate(this::gameTick, 0, 50, TimeUnit.MILLISECONDS);
     }
 
     /**
@@ -122,81 +95,81 @@ public class GameService {
         if (!gameState.isGameRunning()) return;
 
         try {
-            // Обновляем позиции пуль
             updateBullets();
 
-            // Получаем решения ИИ и применяем их
             for (Car car : gameState.getCars().values()) {
                 if (!car.isAlive()) continue;
 
                 Car opponent = getOpponent(car);
                 CarAI ai = aiInstances.get(car.getId());
 
-                if (ai != null && opponent != null) {
+                if (ai != null && opponent != null && opponent.isAlive()) {
                     CarAction action = ai.decideAction(car, opponent, gameState.getBullets().values());
-                    applyAction(car, action);
+                    applyActionWithCollisionCheck(car, action);
                 }
             }
 
-            // Проверяем условия окончания игры
             checkGameEnd();
 
         } catch (Exception e) {
-            // Логируем ошибку, но не прерываем игровой цикл
             System.err.println("Error in game tick: " + e.getMessage());
             e.printStackTrace();
         }
     }
 
     /**
-     * Создание экземпляра ИИ для машинки
+     * Применение действия с проверкой столкновений
      */
-    private void createAIInstance(Car car) {
-        if (car == null) {
-            throw new IllegalArgumentException("Car cannot be null");
-        }
+    private void applyActionWithCollisionCheck(Car car, CarAction action) {
+        Position originalPos = new Position(
+                car.getPosition().getX(),
+                car.getPosition().getY(),
+                car.getPosition().getAngle()
+        );
 
-        String aiClassName = car.getAiClass();
-        if (aiClassName == null || aiClassName.trim().isEmpty()) {
-            throw new IllegalArgumentException("AI class name cannot be null or empty for car: " + car.getId());
-        }
+        applyAction(car, action);
 
-        try {
-            System.out.println("Creating AI instance for car " + car.getId() + ": " + aiClassName);
-
-            Class<?> aiClass = Class.forName(aiClassName);
-            CarAI ai = (CarAI) applicationContext.getBean(aiClass);
-            aiInstances.put(car.getId(), ai);
-
-            // Устанавливаем имя AI для отображения
-            car.setAiName(ai.getAIName());
-
-            System.out.println("Successfully created AI: " + ai.getAIName() + " for car " + car.getId());
-
-        } catch (ClassNotFoundException e) {
-            System.err.println("AI class not found: " + aiClassName);
-            // Fallback на SimpleCarAI если указанный класс не найден
-            try {
-                CarAI fallbackAI = applicationContext.getBean(SimpleCarAI.class);
-                aiInstances.put(car.getId(), fallbackAI);
-                car.setAiName(fallbackAI.getAIName() + " (Fallback)");
-                System.out.println("Using fallback AI for car " + car.getId());
-            } catch (Exception fallbackException) {
-                throw new RuntimeException("Cannot create fallback AI instance for car: " + car.getId(), fallbackException);
+        for (Car otherCar : gameState.getCars().values()) {
+            if (!otherCar.getId().equals(car.getId()) && otherCar.isAlive()) {
+                if (checkCarCollision(car, otherCar)) {
+                    car.getPosition().setX(originalPos.getX());
+                    car.getPosition().setY(originalPos.getY());
+                    System.out.println("Collision detected between " + car.getId() + " and " + otherCar.getId());
+                    break;
+                }
             }
-        } catch (Exception e) {
-            System.err.println("Error creating AI instance: " + e.getMessage());
-            throw new RuntimeException("Cannot create AI instance: " + aiClassName + " for car: " + car.getId(), e);
         }
+
+        checkBoundaries(car);
     }
+
     /**
-     * Получение противника для машинки
+     * Проверка столкновения между двумя машинками
      */
-    private Car getOpponent(Car car) {
-        return gameState.getCars().values().stream()
-                .filter(c -> !c.getId().equals(car.getId()))
-                .findFirst()
-                .orElse(null);
+    private boolean checkCarCollision(Car car1, Car car2) {
+        double distance = calculateDistance(car1.getPosition(), car2.getPosition());
+        return distance < MIN_DISTANCE_BETWEEN_CARS;
+    }
+
+    /**
+     * Проверка и корректировка границ поля
+     */
+    private void checkBoundaries(Car car) {
+        Position pos = car.getPosition();
+        double radius = CAR_RADIUS;
+
+        if (pos.getX() - radius < 0) {
+            pos.setX(radius);
+        }
+        if (pos.getX() + radius > FIELD_WIDTH) {
+            pos.setX(FIELD_WIDTH - radius);
+        }
+        if (pos.getY() - radius < 0) {
+            pos.setY(radius);
+        }
+        if (pos.getY() + radius > FIELD_HEIGHT) {
+            pos.setY(FIELD_HEIGHT - radius);
+        }
     }
 
     /**
@@ -224,7 +197,6 @@ public class GameService {
                 }
                 break;
             case IDLE:
-                // Ничего не делаем
                 break;
         }
     }
@@ -239,9 +211,8 @@ public class GameService {
         double newX = pos.getX() + Math.cos(angleRad) * distance;
         double newY = pos.getY() + Math.sin(angleRad) * distance;
 
-        // Проверка границ поля
-        if (newX >= 0 && newX <= FIELD_WIDTH) pos.setX(newX);
-        if (newY >= 0 && newY <= FIELD_HEIGHT) pos.setY(newY);
+        pos.setX(newX);
+        pos.setY(newY);
     }
 
     /**
@@ -253,7 +224,6 @@ public class GameService {
         bullet.setOwnerId(car.getId());
 
         Position carPos = car.getPosition();
-        // Пуля появляется немного впереди машинки
         double bulletX = carPos.getX() + Math.cos(Math.toRadians(carPos.getAngle())) * 25;
         double bulletY = carPos.getY() + Math.sin(Math.toRadians(carPos.getAngle())) * 25;
 
@@ -264,6 +234,8 @@ public class GameService {
         gameState.getBullets().put(bullet.getId(), bullet);
         car.setAmmo(car.getAmmo() - 1);
         car.setLastShotTime(System.currentTimeMillis());
+
+        System.out.println(car.getId() + " shot bullet. Ammo left: " + car.getAmmo());
     }
 
     /**
@@ -276,16 +248,13 @@ public class GameService {
             Map.Entry<String, Bullet> entry = iterator.next();
             Bullet bullet = entry.getValue();
 
-            // Двигаем пулю
             double angleRad = Math.toRadians(bullet.getAngle());
             bullet.getPosition().setX(bullet.getPosition().getX() + Math.cos(angleRad) * bullet.getSpeed());
             bullet.getPosition().setY(bullet.getPosition().getY() + Math.sin(angleRad) * bullet.getSpeed());
 
-            // Проверяем столкновения
             if (checkBulletCollisions(bullet)) {
                 iterator.remove();
             }
-            // Удаляем пули за пределами поля
             else if (isOutOfBounds(bullet.getPosition())) {
                 iterator.remove();
             }
@@ -300,11 +269,14 @@ public class GameService {
             if (!car.isAlive() || car.getId().equals(bullet.getOwnerId())) continue;
 
             double distance = calculateDistance(bullet.getPosition(), car.getPosition());
-            if (distance < 20) { // радиус столкновения
+            if (distance < CAR_RADIUS) {
                 car.setHealth(car.getHealth() - 25);
+                System.out.println("Bullet hit " + car.getId() + ". Health: " + car.getHealth());
+
                 if (car.getHealth() <= 0) {
                     car.setAlive(false);
                     car.setHealth(0);
+                    System.out.println(car.getId() + " destroyed!");
                 }
                 return true;
             }
@@ -338,7 +310,6 @@ public class GameService {
                 gameState.setWinner("draw");
             }
 
-            // Останавливаем игровой цикл
             if (gameLoop != null) {
                 gameLoop.shutdown();
             }
@@ -346,38 +317,55 @@ public class GameService {
     }
 
     /**
-     * Обработка действия игрока (для ручного управления)
+     * Создание экземпляра ИИ для машинки
      */
-    public void handlePlayerAction(String carId, Object action) {
-        Car car = gameState.getCars().get(carId);
-        if (car != null && car.isAlive()) {
-            // Пример обработки действий
-            if (action instanceof GameController.PlayerAction) {
-                GameController.PlayerAction playerAction = (GameController.PlayerAction) action;
+    private void createAIInstance(Car car) {
+        if (car == null) {
+            throw new IllegalArgumentException("Car cannot be null");
+        }
 
-                // Простая реализация обработки действий
-                switch (playerAction.getActionType()) {
-                    case "MOVE_FORWARD":
-                        moveCar(car, CAR_SPEED);
-                        break;
-                    case "MOVE_BACKWARD":
-                        moveCar(car, -CAR_SPEED * 0.5);
-                        break;
-                    case "TURN_LEFT":
-                        car.getPosition().setAngle(car.getPosition().getAngle() - TURN_SPEED);
-                        break;
-                    case "TURN_RIGHT":
-                        car.getPosition().setAngle(car.getPosition().getAngle() + TURN_SPEED);
-                        break;
-                    case "SHOOT":
-                        if (car.canShoot()) {
-                            shootBullet(car);
-                        }
-                        break;
-                }
+        String aiClassName = car.getAiClass();
+        if (aiClassName == null || aiClassName.trim().isEmpty()) {
+            throw new IllegalArgumentException("AI class name cannot be null or empty for car: " + car.getId());
+        }
+
+        try {
+            System.out.println("Creating AI instance for car " + car.getId() + ": " + aiClassName);
+
+            Class<?> aiClass = Class.forName(aiClassName);
+            CarAI ai = (CarAI) applicationContext.getBean(aiClass);
+            aiInstances.put(car.getId(), ai);
+
+            car.setAiName(ai.getAIName());
+
+            System.out.println("Successfully created AI: " + ai.getAIName() + " for car " + car.getId());
+
+        } catch (ClassNotFoundException e) {
+            System.err.println("AI class not found: " + aiClassName);
+            try {
+                CarAI fallbackAI = applicationContext.getBean(org.example.my.ai.SimpleCarAI.class);
+                aiInstances.put(car.getId(), fallbackAI);
+                car.setAiName(fallbackAI.getAIName() + " (Fallback)");
+                System.out.println("Using fallback AI for car " + car.getId());
+            } catch (Exception fallbackException) {
+                throw new RuntimeException("Cannot create fallback AI instance for car: " + car.getId(), fallbackException);
             }
+        } catch (Exception e) {
+            System.err.println("Error creating AI instance: " + e.getMessage());
+            throw new RuntimeException("Cannot create AI instance: " + aiClassName + " for car: " + car.getId(), e);
         }
     }
+
+    /**
+     * Получение противника для машинки
+     */
+    private Car getOpponent(Car car) {
+        return gameState.getCars().values().stream()
+                .filter(c -> !c.getId().equals(car.getId()))
+                .findFirst()
+                .orElse(null);
+    }
+
     /**
      * Расчет расстояния между двумя позициями
      */
@@ -385,6 +373,51 @@ public class GameService {
         double dx = p1.getX() - p2.getX();
         double dy = p1.getY() - p2.getY();
         return Math.sqrt(dx * dx + dy * dy);
+    }
+
+    /**
+     * Сброс игры в начальное состояние
+     */
+    public void resetGame() {
+        stopGame();
+
+        gameState.getCars().clear();
+        gameState.getBullets().clear();
+        gameState.setGameRunning(false);
+        gameState.setGameStartTime(0);
+        gameState.setWinner(null);
+        gameState.setGameDuration(0);
+
+        aiInstances.clear();
+    }
+
+    /**
+     * Остановка текущей игры
+     */
+    public void stopGame() {
+        gameState.setGameRunning(false);
+
+        if (gameLoop != null && !gameLoop.isShutdown()) {
+            gameLoop.shutdown();
+            try {
+                if (!gameLoop.awaitTermination(2, TimeUnit.SECONDS)) {
+                    gameLoop.shutdownNow();
+                }
+            } catch (InterruptedException e) {
+                gameLoop.shutdownNow();
+                Thread.currentThread().interrupt();
+            }
+        }
+    }
+
+    /**
+     * Обработка действия игрока
+     */
+    public void handlePlayerAction(String carId, Object action) {
+        Car car = gameState.getCars().get(carId);
+        if (car != null && car.isAlive()) {
+            // Реализация для ручного управления
+        }
     }
 
     /**

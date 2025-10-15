@@ -12,6 +12,8 @@ import java.util.Collection;
 @Component
 public class SimpleCarAI implements CarAI {
 
+    private static final double SAFE_DISTANCE = 50.0;
+
     @Override
     public CarAction decideAction(Car myCar, Car opponentCar, Collection<Bullet> bullets) {
         if (!myCar.isAlive() || opponentCar == null || !opponentCar.isAlive()) {
@@ -19,10 +21,16 @@ public class SimpleCarAI implements CarAI {
         }
 
         // Расчет расстояния до противника
-        double distance = calculateDistance(myCar.getPosition(), opponentCar.getPosition());
+        double distanceToOpponent = calculateDistance(myCar.getPosition(), opponentCar.getPosition());
+
+        // Проверяем риск столкновения
+        if (distanceToOpponent < SAFE_DISTANCE) {
+            // Слишком близко - отступаем
+            return evadeCollision(myCar, opponentCar);
+        }
 
         // Если близко и можно стрелять - стреляем
-        if (distance < 200 && myCar.canShoot()) {
+        if (distanceToOpponent < 200 && myCar.canShoot()) {
             return new CarAction(CarAction.ActionType.SHOOT);
         }
 
@@ -41,6 +49,26 @@ public class SimpleCarAI implements CarAI {
 
         // Двигаемся вперед к противнику
         return new CarAction(CarAction.ActionType.MOVE_FORWARD, 0.7);
+    }
+
+    /**
+     * Действие для избегания столкновения
+     */
+    private CarAction evadeCollision(Car myCar, Car opponentCar) {
+        double angleToOpponent = calculateAngleToTarget(myCar.getPosition(), opponentCar.getPosition());
+        double angleDiff = normalizeAngle(angleToOpponent - myCar.getPosition().getAngle());
+
+        // Двигаемся в противоположную сторону от противника
+        if (Math.abs(angleDiff) < 90) {
+            return new CarAction(CarAction.ActionType.MOVE_BACKWARD, 0.8);
+        } else {
+            // Резко поворачиваем чтобы обойти
+            if (angleDiff > 0) {
+                return new CarAction(CarAction.ActionType.TURN_LEFT, 1.0);
+            } else {
+                return new CarAction(CarAction.ActionType.TURN_RIGHT, 1.0);
+            }
+        }
     }
 
     private double calculateDistance(Position p1, Position p2) {
