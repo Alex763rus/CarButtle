@@ -462,15 +462,43 @@
         ctx.translate(x, y);
         ctx.rotate(angle * Math.PI / 180);
 
-        ctx.fillStyle = 'yellow';
-        ctx.fillRect(0, -2, 8, 4);
+        // Определяем цвет пули в зависимости от позиции (условно)
+        const isPlayer1Bullet = x < 400; // Пули слева - синие, справа - красные
+        const bulletColor = isPlayer1Bullet ? '#4169E1' : '#FF4444';
+        const glowColor = isPlayer1Bullet ? '#6495ED' : '#FF6666';
 
-        ctx.strokeStyle = 'orange';
-        ctx.lineWidth = 1;
+        // Основное тело пули
+        ctx.fillStyle = bulletColor;
+        ctx.fillRect(-2, -3, 14, 6);
+
+        // Яркое ядро
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(2, -1, 6, 2);
+
+        // Огненный хвост
+        const gradient = ctx.createLinearGradient(-6, 0, 0, 0);
+        gradient.addColorStop(0, '#FFA500');
+        gradient.addColorStop(0.7, '#FFFF00');
+        gradient.addColorStop(1, 'transparent');
+
+        ctx.fillStyle = gradient;
+        ctx.fillRect(-6, -2, 6, 4);
+
+        ctx.restore();
+
+        // Свечение вокруг пули
+        ctx.save();
+        ctx.translate(x, y);
+
+        const glow = ctx.createRadialGradient(0, 0, 0, 0, 0, 10);
+        glow.addColorStop(0, glowColor + 'CC');
+        glow.addColorStop(0.7, glowColor + '66');
+        glow.addColorStop(1, 'transparent');
+
+        ctx.fillStyle = glow;
         ctx.beginPath();
-        ctx.moveTo(-5, 0);
-        ctx.lineTo(0, 0);
-        ctx.stroke();
+        ctx.arc(0, 0, 10, 0, Math.PI * 2);
+        ctx.fill();
 
         ctx.restore();
     }
