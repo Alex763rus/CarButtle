@@ -14,7 +14,7 @@ public class Car {
     private Position position = new Position(0, 0, 0);
 
     @Builder.Default
-    private double speed = 0;
+    private double speed = 0.0;
 
     @Builder.Default
     private double maxSpeed = 5.0;
@@ -35,24 +35,20 @@ public class Car {
     private boolean alive = true;
 
     @Builder.Default
-    private long lastShotTime = 0;
+    private long lastShotTime = 0L;
 
     @Builder.Default
-    private long shootCooldown = 1000; // 1 second cooldown
+    private long shootCooldown = 1000L;
+
+    @Builder.Default
+    private int bulletLifetime = 2000;
 
     @Builder.Default
     private String name = "Car";
 
     @Builder.Default
-    private int ammo = 30; // Добавляем поле ammo
-
-    @Builder.Default
-    private int maxAmmo = 30;
-
-    @Builder.Default
     private int score = 0;
 
-    // Конструктор для удобного создания
     public Car(double x, double y, double angle) {
         this.position = new Position(x, y, angle);
     }
@@ -70,10 +66,11 @@ public class Car {
         position = new Position(newX, newY, position.getAngle());
 
         // Постепенное замедление
+        double deceleration = acceleration * 0.3;
         if (speed > 0) {
-            speed = Math.max(0, speed - 0.05);
+            speed = Math.max(0, speed - deceleration);
         } else if (speed < 0) {
-            speed = Math.min(0, speed + 0.05);
+            speed = Math.min(0, speed + deceleration);
         }
     }
 
@@ -104,10 +101,11 @@ public class Car {
         if (canShoot()) {
             lastShotTime = currentTime;
 
-            // Создаем пулю в направлении машины
-            double bulletSpeed = 10.0;
+            // Скорость пули зависит от дальности выстрела
+            double bulletSpeed = 3.0 + (bulletLifetime - 1500) / 1125 * 6.0;
+
             double radianAngle = Math.toRadians(position.getAngle());
-            double startX = position.getX() + Math.cos(radianAngle) * 25; // Пуля появляется перед танком
+            double startX = position.getX() + Math.cos(radianAngle) * 25;
             double startY = position.getY() + Math.sin(radianAngle) * 25;
 
             return Bullet.builder()
@@ -117,7 +115,7 @@ public class Car {
                     .speed(bulletSpeed)
                     .owner(this)
                     .damage(25)
-                    .lifetime(2000) // 2 секунды жизни
+                    .lifetime(bulletLifetime)
                     .active(true)
                     .build();
         }
@@ -129,20 +127,15 @@ public class Car {
         return alive && (currentTime - lastShotTime) >= shootCooldown;
     }
 
-    public void addAmmo(int amount) {
-        this.ammo = Math.min(maxAmmo, ammo + amount);
-    }
-
-    public void reload() {
-        this.ammo = maxAmmo;
-    }
-
     public void takeDamage(int damage) {
         if (alive) {
             health = Math.max(0, health - damage);
+            System.out.printf("💢 %s took %d damage, health now: %d%n", name, damage, health);
+
             if (health <= 0) {
                 alive = false;
-                speed = 0;
+                speed = 0.0;
+                System.out.printf("💀 %s is DESTROYED!%n", name);
             }
         }
     }
@@ -156,9 +149,10 @@ public class Car {
     public void respawn(double x, double y, double angle) {
         this.position = new Position(x, y, angle);
         this.health = maxHealth;
-        this.speed = 0;
+        this.speed = 0.0;
         this.alive = true;
         this.lastShotTime = System.currentTimeMillis();
+        System.out.println(name + " respawned with full health");
     }
 
     public void addScore(int points) {
@@ -169,5 +163,40 @@ public class Car {
         while (angle > 360) angle -= 360;
         while (angle < 0) angle += 360;
         return angle;
+    }
+
+    // РУЧНО ДОБАВИМ ГЕТТЕРЫ которые Lombok не создает правильно
+    public boolean isAlive() {
+        return alive;
+    }
+
+    public double getSpeed() {
+        return speed;
+    }
+
+    public double getMaxSpeed() {
+        return maxSpeed;
+    }
+
+    public double getAcceleration() {
+        return acceleration;
+    }
+
+    public int getHealth() {
+        return health;
+    }
+
+    public long getShootCooldown() {
+        return shootCooldown;
+    }
+
+    public int getBulletLifetime() {
+        return bulletLifetime;
+    }
+
+    @Override
+    public String toString() {
+        return String.format("Car{name='%s', position=%s, health=%d, alive=%s, score=%d}",
+                name, position, health, alive, score);
     }
 }

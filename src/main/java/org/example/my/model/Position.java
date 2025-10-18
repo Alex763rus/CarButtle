@@ -1,14 +1,12 @@
 package org.example.my.model;
 
-import lombok.Data;
 import lombok.Builder;
+import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.AllArgsConstructor;
 
 @Data
 @Builder
 @NoArgsConstructor
-@AllArgsConstructor
 public class Position {
     @Builder.Default
     private double x = 0;
@@ -17,7 +15,13 @@ public class Position {
     private double y = 0;
 
     @Builder.Default
-    private double angle = 0; // в градусах
+    private double angle = 0;
+
+    public Position(double x, double y, double angle) {
+        this.x = x;
+        this.y = y;
+        this.angle = angle;
+    }
 
     public double distanceTo(Position other) {
         if (other == null) return Double.MAX_VALUE;
@@ -28,5 +32,18 @@ public class Position {
 
     public Position copy() {
         return new Position(x, y, angle);
+    }
+
+    // РУЧНЫЕ ГЕТТЕРЫ
+    public double getX() {
+        return x;
+    }
+
+    public double getY() {
+        return y;
+    }
+
+    public double getAngle() {
+        return angle;
     }
 }

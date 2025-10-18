@@ -1,8 +1,7 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html>
 <head>
     <title>Car Battle Game</title>
-    <meta charset="UTF-8">
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -70,11 +69,31 @@
             border: 1px solid #ddd;
             border-radius: 4px;
         }
+        .health-bar {
+            height: 20px;
+            background: #ddd;
+            border-radius: 10px;
+            margin: 5px 0;
+            overflow: hidden;
+        }
+        .health-fill {
+            height: 100%;
+            background: #4CAF50;
+            transition: width 0.3s;
+        }
+        .debug-info {
+            margin-top: 20px;
+            padding: 10px;
+            background: #fff3cd;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 12px;
+        }
     </style>
 </head>
 <body>
 <div class="container">
-    <h1 th:text="${message}">Car Battle Game</h1>
+    <h1>Car Battle AI Game</h1>
 
     <div class="controls">
         <button onclick="startGame()">🎮 Start Game</button>
@@ -86,17 +105,21 @@
         <div>
             <label>Player 1 (Blue):</label>
             <select id="player1AI">
+                <option value="aggressive">Aggressive AI (Speed:5)</option>
+                <option value="defensive">Defensive AI (Range:5)</option>
                 <option value="simple">Simple AI</option>
-                <option value="aggressive">Aggressive AI</option>
-                <option value="defensive">Defensive AI</option>
+                <option value="test">test AI</option>
+                <option value="test2">test2 AI</option>
             </select>
         </div>
         <div>
             <label>Player 2 (Red):</label>
             <select id="player2AI">
+                <option value="aggressive">Aggressive AI (Speed:5)</option>
+                <option value="defensive">Defensive AI (Range:5)</option>
                 <option value="simple">Simple AI</option>
-                <option value="aggressive">Aggressive AI</option>
-                <option value="defensive">Defensive AI</option>
+                <option value="test">test AI</option>
+                <option value="test2">test2 AI</option>
             </select>
         </div>
     </div>
@@ -109,7 +132,9 @@
         Your browser does not support the canvas element.
     </canvas>
 
-    <div id="debugInfo" style="margin-top: 20px; padding: 10px; background: #fff3cd; border-radius: 5px;"></div>
+    <div class="debug-info" id="debugInfo">
+        Debug information will appear here...
+    </div>
 </div>
 
 <script>
@@ -120,8 +145,9 @@
 
     // Состояние игры с сервера
     let gameState = {
-        player1: { x: 100, y: 100, angle: 0, health: 100, alive: true, name: "Player 1" },
-        player2: { x: 700, y: 500, angle: 180, health: 100, alive: true, name: "Player 2" },
+        player1: { x: 100, y: 100, angle: 0, health: 100, alive: true, name: "Player 1", speed: 0, maxSpeed: 5, canShoot: true },
+        player2: { x: 700, y: 500, angle: 180, health: 100, alive: true, name: "Player 2", speed: 0, maxSpeed: 5, canShoot: true },
+        bullets: [],
         gameRunning: false
     };
 
@@ -145,7 +171,6 @@
         try {
             updateStatus('Starting game...');
 
-            // Получаем выбранные AI
             const player1AI = document.getElementById('player1AI').value;
             const player2AI = document.getElementById('player2AI').value;
 
@@ -167,11 +192,11 @@
             }
 
             const data = await response.json();
-            debug('Start response: ' + JSON.stringify(data));
+            debug('Start response received');
 
             gameState = data;
             gameRunning = true;
-            updateStatus('Game running');
+            updateStatus('Game running - Watch console for detailed logs!');
 
             gameLoop();
 
@@ -181,50 +206,6 @@
             console.error('Error starting game:', error);
         }
     }
-
-    // Функция для загрузки кастомных AI в селекторы
-    async function loadCustomAIs() {
-        try {
-            const response = await fetch('/ai/list');
-            const data = await response.json();
-
-            updateAISelectors(data.customAIs);
-        } catch (error) {
-            console.error('Error loading custom AIs:', error);
-        }
-    }
-
-    function updateAISelectors(customAIs) {
-        const selectors = ['player1AI', 'player2AI'];
-
-        selectors.forEach(selectorId => {
-            const selector = document.getElementById(selectorId);
-
-            // Сохраняем стандартные опции
-            const standardOptions = Array.from(selector.options)
-                .filter(opt => !opt.value.startsWith('custom_'));
-
-            // Очищаем и добавляем стандартные опции
-            selector.innerHTML = '';
-            standardOptions.forEach(opt => selector.add(opt));
-
-            // Добавляем кастомные AI
-            if (customAIs) {
-                Object.keys(customAIs).forEach(aiKey => {
-                    const option = document.createElement('option');
-                    option.value = `custom_${aiKey}`;
-                    option.textContent = customAIs[aiKey] + ' (Custom)';
-                    selector.add(option);
-                });
-            }
-        });
-    }
-
-    // Загружаем кастомные AI при старте
-    window.addEventListener('load', function() {
-        loadCustomAIs();
-        // ... остальной код инициализации
-    });
 
     function stopGame() {
         gameRunning = false;
@@ -263,59 +244,15 @@
             if (response.ok) {
                 const newState = await response.json();
                 gameState = newState;
-                debug(`P1:(${gameState.player1.x.toFixed(1)},${gameState.player1.y.toFixed(1)}) ` +
-                    `P2:(${gameState.player2.x.toFixed(1)},${gameState.player2.y.toFixed(1)})`);
+
+                // Обновляем отладочную информацию
+                if (gameState.player1 && gameState.player2) {
+                    debug(`P1: ${gameState.player1.health}HP, ${gameState.player1.speed?.toFixed(1)} speed | P2: ${gameState.player2.health}HP, ${gameState.player2.speed?.toFixed(1)} speed | Bullets: ${gameState.bullets?.length || 0}`);
+                }
             }
         } catch (error) {
             console.error('Error updating game:', error);
         }
-    }
-
-
-    function drawCar(x, y, angle, color, name) {
-        ctx.save();
-        ctx.translate(x, y);
-        ctx.rotate(angle * Math.PI / 180);
-
-        // Кузов машины
-        ctx.fillStyle = color;
-        ctx.fillRect(-15, -10, 30, 20);
-
-        // Ветровое стекло
-        ctx.fillStyle = '#aaccff';
-        ctx.fillRect(-10, -8, 20, 8);
-
-        // Дуло танка
-        ctx.fillStyle = '#333';
-        ctx.fillRect(10, -2, 15, 4);
-
-        ctx.restore();
-
-        // Зона коллизии
-        ctx.strokeStyle = color;
-        ctx.lineWidth = 1;
-        ctx.setLineDash([5, 5]);
-        ctx.beginPath();
-        ctx.arc(x, y, 20, 0, 2 * Math.PI);
-        ctx.stroke();
-        ctx.setLineDash([]);
-
-        // Имя и здоровье под машиной
-        ctx.fillStyle = 'black';
-        ctx.font = '12px Arial';
-        ctx.textAlign = 'center';
-        ctx.fillText(`${name} (${Math.round(x)},${Math.round(y)})`, x, y + 40);
-        ctx.textAlign = 'left';
-    }
-
-    function checkCollision(player1, player2) {
-        if (!player1 || !player2) return false;
-
-        const dx = player1.x - player2.x;
-        const dy = player1.y - player2.y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-
-        return distance < 40;
     }
 
     function renderGame() {
@@ -352,6 +289,9 @@
             const color = isAlive ? 'blue' : 'gray';
             const name = isAlive ? gameState.player1.name : gameState.player1.name + " (DEAD)";
             drawCar(gameState.player1.x, gameState.player1.y, gameState.player1.angle, color, name, isAlive);
+
+            // Полоска здоровья для Player 1
+            drawHealthBar(gameState.player1.health, 10, 100, 'blue');
         }
 
         if (gameState.player2) {
@@ -359,46 +299,92 @@
             const color = isAlive ? 'red' : 'gray';
             const name = isAlive ? gameState.player2.name : gameState.player2.name + " (DEAD)";
             drawCar(gameState.player2.x, gameState.player2.y, gameState.player2.angle, color, name, isAlive);
+
+            // Полоска здоровья для Player 2
+            drawHealthBar(gameState.player2.health, canvas.width - 210, 100, 'red');
         }
 
         // Отрисовка HUD
         ctx.fillStyle = 'black';
+        ctx.font = 'bold 14px Arial';
+
+        // Player 1 информация
+        if (gameState.player1) {
+            const p1 = gameState.player1;
+            ctx.fillText(`Player 1 - ${p1.alive ? 'ALIVE' : 'DEAD'}`, 10, 20);
+
+            if (p1.alive) {
+                ctx.font = '12px Arial';
+                ctx.fillText(`Health: ${p1.health}`, 10, 40);
+                ctx.fillText(`Speed: ${p1.speed?.toFixed(1)}/${p1.maxSpeed?.toFixed(1)}`, 10, 60);
+                ctx.fillText(`Shoot: ${p1.canShoot ? 'READY' : 'RELOADING'}`, 10, 80);
+            }
+        }
+
+        // Player 2 информация
+        if (gameState.player2) {
+            const p2 = gameState.player2;
+            ctx.fillText(`Player 2 - ${p2.alive ? 'ALIVE' : 'DEAD'}`, 600, 20);
+
+            if (p2.alive) {
+                ctx.font = '12px Arial';
+                ctx.fillText(`Health: ${p2.health}`, 600, 40);
+                ctx.fillText(`Speed: ${p2.speed?.toFixed(1)}/${p2.maxSpeed?.toFixed(1)}`, 600, 60);
+                ctx.fillText(`Shoot: ${p2.canShoot ? 'READY' : 'RELOADING'}`, 600, 80);
+            }
+        }
+
+        // Общая информация
+        ctx.fillStyle = 'black';
         ctx.font = '16px Arial';
-
-        const player1Status = gameState.player1.alive ?
-            `Player 1 (Blue) - ${gameState.player1.health}HP` :
-            `Player 1 (Blue) - DESTROYED`;
-
-        const player2Status = gameState.player2.alive ?
-            `Player 2 (Red) - ${gameState.player2.health}HP` :
-            `Player 2 (Red) - DESTROYED`;
-
-        ctx.fillText(player1Status, 10, 20);
-        ctx.fillText(player2Status, 550, 20);
-
-        // Статус игры
-        ctx.fillText(`Game: ${gameRunning ? 'RUNNING' : 'STOPPED'} | Bullets: ${gameState.bullets ? gameState.bullets.length : 0}`, 300, 20);
+        ctx.fillText(`Bullets: ${gameState.bullets ? gameState.bullets.length : 0}`, 350, 20);
 
         // Отображение победителя
-        if (!gameState.player1.alive && !gameState.player2.alive) {
-            ctx.fillStyle = 'purple';
-            ctx.font = 'bold 24px Arial';
-            ctx.textAlign = 'center';
-            ctx.fillText('DRAW!', canvas.width / 2, 50);
-            ctx.textAlign = 'left';
-        } else if (!gameState.player1.alive) {
-            ctx.fillStyle = 'red';
-            ctx.font = 'bold 24px Arial';
-            ctx.textAlign = 'center';
-            ctx.fillText('PLAYER 2 WINS!', canvas.width / 2, 50);
-            ctx.textAlign = 'left';
-        } else if (!gameState.player2.alive) {
-            ctx.fillStyle = 'blue';
-            ctx.font = 'bold 24px Arial';
-            ctx.textAlign = 'center';
-            ctx.fillText('PLAYER 1 WINS!', canvas.width / 2, 50);
-            ctx.textAlign = 'left';
+        if (gameState.player1 && gameState.player2) {
+            if (!gameState.player1.alive && !gameState.player2.alive) {
+                ctx.fillStyle = 'purple';
+                ctx.font = 'bold 24px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('DRAW!', canvas.width / 2, 50);
+                ctx.textAlign = 'left';
+            } else if (!gameState.player1.alive) {
+                ctx.fillStyle = 'red';
+                ctx.font = 'bold 24px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('PLAYER 2 WINS!', canvas.width / 2, 50);
+                ctx.textAlign = 'left';
+            } else if (!gameState.player2.alive) {
+                ctx.fillStyle = 'blue';
+                ctx.font = 'bold 24px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('PLAYER 1 WINS!', canvas.width / 2, 50);
+                ctx.textAlign = 'left';
+            }
         }
+    }
+
+    function drawHealthBar(health, x, y, color) {
+        const width = 200;
+        const height = 20;
+        const healthPercent = health / 100;
+
+        // Фон
+        ctx.fillStyle = '#ddd';
+        ctx.fillRect(x, y, width, height);
+
+        // Здоровье
+        ctx.fillStyle = color;
+        ctx.fillRect(x, y, width * healthPercent, height);
+
+        // Рамка
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x, y, width, height);
+
+        // Текст
+        ctx.fillStyle = 'black';
+        ctx.font = '12px Arial';
+        ctx.fillText(`${health}%`, x + width / 2 - 10, y + 14);
     }
 
     function drawCar(x, y, angle, color, name, isAlive) {
@@ -407,7 +393,7 @@
         ctx.rotate(angle * Math.PI / 180);
 
         if (isAlive) {
-            // Живой танк - обычная отрисовка
+            // Живой танк
             ctx.fillStyle = color;
             ctx.fillRect(-15, -10, 30, 20);
 
@@ -417,15 +403,14 @@
             ctx.fillStyle = '#333';
             ctx.fillRect(10, -2, 15, 4);
         } else {
-            // Убитый танк - черный обводка и прозрачный
+            // Убитый танк
             ctx.strokeStyle = 'black';
             ctx.lineWidth = 2;
             ctx.strokeRect(-15, -10, 30, 20);
 
-            ctx.fillStyle = color + '80'; // Прозрачный цвет
+            ctx.fillStyle = color + '80';
             ctx.fillRect(-15, -10, 30, 20);
 
-            // Перечеркнутый крестиком
             ctx.strokeStyle = 'red';
             ctx.lineWidth = 2;
             ctx.beginPath();
@@ -438,18 +423,18 @@
 
         ctx.restore();
 
-        // Зона коллизии (только для живых танков)
+        // Зона попадания (для отладки)
         if (isAlive) {
             ctx.strokeStyle = color;
             ctx.lineWidth = 1;
             ctx.setLineDash([5, 5]);
             ctx.beginPath();
-            ctx.arc(x, y, 20, 0, 2 * Math.PI);
+            ctx.arc(x, y, 25, 0, 2 * Math.PI);
             ctx.stroke();
             ctx.setLineDash([]);
         }
 
-        // Имя и статус под машиной
+        // Имя под машиной
         ctx.fillStyle = isAlive ? 'black' : 'red';
         ctx.font = isAlive ? '12px Arial' : 'bold 12px Arial';
         ctx.textAlign = 'center';
@@ -462,42 +447,31 @@
         ctx.translate(x, y);
         ctx.rotate(angle * Math.PI / 180);
 
-        // Определяем цвет пули в зависимости от позиции (условно)
-        const isPlayer1Bullet = x < 400; // Пули слева - синие, справа - красные
-        const bulletColor = isPlayer1Bullet ? '#4169E1' : '#FF4444';
-        const glowColor = isPlayer1Bullet ? '#6495ED' : '#FF6666';
-
-        // Основное тело пули
-        ctx.fillStyle = bulletColor;
-        ctx.fillRect(-2, -3, 14, 6);
+        // Пуля
+        ctx.fillStyle = '#FFFF00';
+        ctx.fillRect(-3, -3, 12, 6);
 
         // Яркое ядро
         ctx.fillStyle = '#FFFFFF';
-        ctx.fillRect(2, -1, 6, 2);
+        ctx.fillRect(0, -1, 6, 2);
 
         // Огненный хвост
-        const gradient = ctx.createLinearGradient(-6, 0, 0, 0);
-        gradient.addColorStop(0, '#FFA500');
-        gradient.addColorStop(0.7, '#FFFF00');
-        gradient.addColorStop(1, 'transparent');
-
-        ctx.fillStyle = gradient;
-        ctx.fillRect(-6, -2, 6, 4);
+        ctx.fillStyle = '#FF4500';
+        ctx.fillRect(-6, -2, 3, 4);
 
         ctx.restore();
 
-        // Свечение вокруг пули
+        // Свечение
         ctx.save();
         ctx.translate(x, y);
 
-        const glow = ctx.createRadialGradient(0, 0, 0, 0, 0, 10);
-        glow.addColorStop(0, glowColor + 'CC');
-        glow.addColorStop(0.7, glowColor + '66');
-        glow.addColorStop(1, 'transparent');
+        const glow = ctx.createRadialGradient(0, 0, 0, 0, 0, 8);
+        glow.addColorStop(0, 'rgba(255, 255, 0, 0.6)');
+        glow.addColorStop(1, 'rgba(255, 200, 0, 0)');
 
         ctx.fillStyle = glow;
         ctx.beginPath();
-        ctx.arc(0, 0, 10, 0, Math.PI * 2);
+        ctx.arc(0, 0, 8, 0, Math.PI * 2);
         ctx.fill();
 
         ctx.restore();
@@ -509,18 +483,8 @@
 
     // Автоматически получаем состояние игры при загрузке
     window.addEventListener('load', async function() {
-        updateStatus('Loading game state...');
-
-        try {
-            const response = await fetch('/game/state');
-            const state = await response.json();
-            gameState = state;
-            updateStatus('Ready to start');
-            renderGame(); // Отрисовываем начальное состояние
-        } catch (error) {
-            updateStatus('Error loading game state');
-            debug('Error: ' + error.message);
-        }
+        updateStatus('Loading...');
+        debug('System initialized');
     });
 </script>
 </body>

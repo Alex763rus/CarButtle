@@ -8,7 +8,7 @@ import org.springframework.stereotype.Component;
 import java.util.Collection;
 
 @Component
-public class SimpleCarAI extends BaseCarAI {
+public class TestCarAI extends BaseCarAI {
 
     @Override
     public int getShootingRange() {
@@ -30,28 +30,28 @@ public class SimpleCarAI extends BaseCarAI {
         if (!myCar.isAlive() || opponentCar == null || !opponentCar.isAlive()) {
             return idle();
         }
-
+        return moveForward(1.0);
         // Используем готовые методы из BaseCarAI
-        double distance = getDistanceToEnemy(myCar, opponentCar);
-        double angleDiff = getAngleDifference(myCar, opponentCar);
-
-        // Уворачиваемся от пуль
-        if (shouldEvadeBullet(myCar, bullets, 60)) {
-            Bullet nearestBullet = getNearestEnemyBullet(myCar, bullets);
-            return evadeBullet(myCar, nearestBullet);
-        }
-
-        // Стреляем если можем
-        if (shouldShoot(myCar, opponentCar, 20)) {
-            return shoot();
-        }
-
-        // Двигаемся к противнику
-        if (Math.abs(angleDiff) > 15) {
-            return turnToEnemy(angleDiff);
-        }
-
-        return moveForward(0.7);
+//        double distance = getDistanceToEnemy(myCar, opponentCar);
+//        double angleDiff = getAngleDifference(myCar, opponentCar);
+//
+//        // Уворачиваемся от пуль
+//        if (shouldEvadeBullet(myCar, bullets, 60)) {
+//            Bullet nearestBullet = getNearestEnemyBullet(myCar, bullets);
+//            return evadeBullet(myCar, nearestBullet);
+//        }
+//
+//        // Стреляем если можем
+//        if (shouldShoot(myCar, opponentCar, 20)) {
+//            return shoot();
+//        }
+//
+//        // Двигаемся к противнику
+//        if (Math.abs(angleDiff) > 15) {
+//            return turnToEnemy(angleDiff);
+//        }
+//
+//        return moveForward(0.7);
     }
 
     @Override

@@ -6,15 +6,41 @@ import org.example.my.model.CarAction;
 
 import java.util.Collection;
 
+/**
+ * Основной интерфейс для всех AI с системой характеристик
+ */
 public interface CarAI {
+
+    // === МЕТОДЫ КОНФИГУРАЦИИ ===
+
     /**
-     * Основной метод ИИ, вызывается каждый игровой тик
-     * @param myCar наша машинка
-     * @param opponentCar машинка противника
-     * @param bullets список всех пуль на поле
-     * @return действие, которое должна выполнить машинка
+     * Дальность выстрела (1-5 очков)
+     * Влияет на дальность и скорость пуль
+     */
+    int getShootingRange();
+
+    /**
+     * Скорость перемещения (1-5 очков)
+     * Влияет на максимальную скорость и ускорение
+     */
+    int getMovementSpeed();
+
+    /**
+     * Скорострельность (1-5 очков)
+     * Влияет на время перезарядки
+     */
+    int getFireRate();
+
+    // === ОСНОВНЫЕ МЕТОДЫ ===
+
+    /**
+     * Основной метод принятия решений
      */
     CarAction decideAction(Car myCar, Car opponentCar, Collection<Bullet> bullets);
 
+    /**
+     * Получение имени AI
+     */
     String getAIName();
+
 }

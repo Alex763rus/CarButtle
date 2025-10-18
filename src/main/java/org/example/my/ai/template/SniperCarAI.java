@@ -16,16 +16,22 @@ public class SniperCarAI implements CarAI {
     private static final double AIM_THRESHOLD = 5.0;
 
     @Override
-    public CarAction decideAction(Car myCar, Car opponentCar, Collection<Bullet> bullets) {
-        // Если наш танк мертв - ничего не делаем
-        if (!myCar.isAlive()) {
-            return new CarAction(CarAction.ActionType.IDLE);
-        }
+    public int getShootingRange() {
+        return 3;
+    }
 
-        // Если противник мертв - ищем другую цель или останавливаемся
-        if (opponentCar == null || !opponentCar.isAlive()) {
-            return new CarAction(CarAction.ActionType.IDLE);
-        }
+    @Override
+    public int getMovementSpeed() {
+        return 3;
+    }
+
+    @Override
+    public int getFireRate() {
+        return 4;
+    }
+
+    @Override
+    public CarAction decideAction(Car myCar, Car opponentCar, Collection<Bullet> bullets) {
         if (!myCar.isAlive() || opponentCar == null || !opponentCar.isAlive()) {
             return new CarAction(CarAction.ActionType.IDLE);
         }

@@ -1,16 +1,11 @@
 package org.example.my.controller;
 
 import org.example.my.ai.CarAI;
-import org.example.my.ai.dynamic.CustomAIManager;
-import org.example.my.ai.template.AggressiveCarAI;
-import org.example.my.ai.template.DefensiveCarAI;
-import org.example.my.ai.template.SimpleCarAI;
-import org.example.my.ai.template.SniperCarAI;
+import org.example.my.ai.template.*;
 import org.example.my.model.Bullet;
 import org.example.my.model.Car;
 import org.example.my.model.CarAction;
 import org.example.my.model.Position;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -20,11 +15,9 @@ import java.util.concurrent.ConcurrentHashMap;
 public class GameEngine {
     private Map<String, Car> cars = new ConcurrentHashMap<>();
     private Map<String, CarAI> carAIs = new ConcurrentHashMap<>();
+    private Map<String, Boolean> statsApplied = new ConcurrentHashMap<>();
     private List<Bullet> bullets = Collections.synchronizedList(new ArrayList<>());
     private boolean gameRunning = false;
-    private static final double CAR_RADIUS = 20.0;
-    @Autowired
-    private CustomAIManager customAIManager; // Добавляем зависимость
 
     public void initializeGame() {
         // Создаем две машины
@@ -41,13 +34,19 @@ public class GameEngine {
         cars.put("player1", player1);
         cars.put("player2", player2);
 
-        // Назначаем AI
-        carAIs.put("player1", new SimpleCarAI());
-        carAIs.put("player2", new SimpleCarAI());
+        // НАПРЯМУЮ назначаем AI для теста
+        carAIs.put("player1", new AggressiveCarAI());
+        carAIs.put("player2", new DefensiveCarAI());
+
+        // СРАЗУ применяем характеристики
+        applyTankStatsIfNeeded("player1", player1);
+        applyTankStatsIfNeeded("player2", player2);
 
         bullets.clear();
+        statsApplied.clear();
         gameRunning = true;
-        System.out.println("Game initialized with 2 cars");
+
+        System.out.println("🎮 Game initialized with DIRECT AI assignment");
     }
 
     public void updateGame() {
@@ -55,28 +54,37 @@ public class GameEngine {
 
         Car player1 = cars.get("player1");
         Car player2 = cars.get("player2");
+        CarAI ai1 = carAIs.get("player1");
+        CarAI ai2 = carAIs.get("player2");
 
         if (player1 == null || player2 == null) {
             System.out.println("Cars not initialized!");
             return;
         }
+        // ПРОВЕРКА AI КЛАССОВ
+        if (System.currentTimeMillis() % 100 == 0) {
+            System.out.println("\n🔍 AI CLASS CHECK:");
+            System.out.println("   P1 AI: " + (ai1 != null ? ai1.getClass().getSimpleName() : "NULL"));
+            System.out.println("   P2 AI: " + (ai2 != null ? ai2.getClass().getSimpleName() : "NULL"));
+
+            if (ai1 != null) {
+                System.out.printf("   P1 Stats: Range=%d, Speed=%d, FireRate=%d%n",
+                        ai1.getShootingRange(), ai1.getMovementSpeed(), ai1.getFireRate());
+            }
+            if (ai2 != null) {
+                System.out.printf("   P2 Stats: Range=%d, Speed=%d, FireRate=%d%n",
+                        ai2.getShootingRange(), ai2.getMovementSpeed(), ai2.getFireRate());
+            }
+        }
+        // Применяем характеристики если еще не применяли
+        applyTankStatsIfNeeded("player1", player1);
+        applyTankStatsIfNeeded("player2", player2);
 
         // Сохраняем старые позиции для отката при коллизии
-        Position oldPos1 = new Position(
-                player1.getPosition().getX(),
-                player1.getPosition().getY(),
-                player1.getPosition().getAngle()
-        );
-        Position oldPos2 = new Position(
-                player2.getPosition().getX(),
-                player2.getPosition().getY(),
-                player2.getPosition().getAngle()
-        );
+        Position oldPos1 = player1.getPosition().copy();
+        Position oldPos2 = player2.getPosition().copy();
 
         // Получаем действия от AI
-        CarAI ai1 = carAIs.get("player1");
-        CarAI ai2 = carAIs.get("player2");
-
         CarAction action1 = ai1.decideAction(player1, player2, bullets);
         CarAction action2 = ai2.decideAction(player2, player1, bullets);
 
@@ -85,7 +93,9 @@ public class GameEngine {
             Bullet bullet = player1.shoot();
             if (bullet != null) {
                 bullets.add(bullet);
-                System.out.println("Player 1 shot a bullet");
+                Position pos = bullet.getPosition();
+                System.out.printf("🔫 %s shot bullet at (%.1f, %.1f)%n",
+                        player1.getName(), pos.getX(), pos.getY());
             }
         }
 
@@ -93,7 +103,9 @@ public class GameEngine {
             Bullet bullet = player2.shoot();
             if (bullet != null) {
                 bullets.add(bullet);
-                System.out.println("Player 2 shot a bullet");
+                Position pos = bullet.getPosition();
+                System.out.printf("🔫 %s shot bullet at (%.1f, %.1f)%n",
+                        player2.getName(), pos.getX(), pos.getY());
             }
         }
 
@@ -114,7 +126,147 @@ public class GameEngine {
             player2.setPosition(oldPos2);
             player1.setSpeed(0);
             player2.setSpeed(0);
-            System.out.println("Collision detected! Positions reverted.");
+            System.out.println("🚗 Collision detected! Positions reverted.");
+        }
+
+        // Логируем статистику
+        logTankStats();
+    }
+
+    private void applyTankStatsIfNeeded(String playerKey, Car car) {
+//        if (!statsApplied.getOrDefault(playerKey, false)) {
+            CarAI ai = carAIs.get(playerKey);
+            if (ai != null) {
+                try {
+                    // ЖЕСТКАЯ проверка характеристик
+                    int range = ai.getShootingRange();
+                    int speed = ai.getMovementSpeed();
+                    int fireRate = ai.getFireRate();
+                    int total = range + speed + fireRate;
+
+                    System.out.printf("🔍 Validating %s: Range=%d, Speed=%d, FireRate=%d, Total=%d%n",
+                            playerKey, range, speed, fireRate, total);
+
+                    if (range < 1 || range > 5 || speed < 1 || speed > 5 || fireRate < 1 || fireRate > 5) {
+                        throw new IllegalStateException(
+                                String.format("Stats must be between 1 and 5! Got: Range=%d, Speed=%d, FireRate=%d",
+                                        range, speed, fireRate));
+                    }
+
+                    if (total > 10) {
+                        throw new IllegalStateException(
+                                String.format("Too many points! Max 10, got %d (Range=%d, Speed=%d, FireRate=%d)",
+                                        total, range, speed, fireRate));
+                    }
+
+                    // Применяем характеристики к танку
+                    applyAITankStats(ai, car);
+                    statsApplied.put(playerKey, true);
+
+                    System.out.printf("✅ SUCCESS: Applied stats for %s: %s%n",
+                            playerKey, getStatsDescription(ai, car));
+
+                } catch (Exception e) {
+                    System.err.println("❌ CRITICAL ERROR for " + playerKey + ": " + e.getMessage());
+                    System.err.println("🚨 Using DEFAULT stats due to invalid configuration");
+                    applyDefaultStats(car);
+                    statsApplied.put(playerKey, true);
+                }
+//            }
+        }
+    }
+
+    // Добавьте в GameEngine.java
+    public void setPlayerAI(int playerNumber, String aiName) {
+        String playerKey = playerNumber == 1 ? "player1" : "player2";
+
+        try {
+            switch (aiName) {
+                case "aggressive":
+                    carAIs.put(playerKey, new AggressiveCarAI());
+                    break;
+                case "defensive":
+                    carAIs.put(playerKey, new DefensiveCarAI());
+                    break;
+                case "simple":
+                    carAIs.put(playerKey, new SimpleCarAI());
+                    break;
+                case "test":
+                    carAIs.put(playerKey, new TestCarAI());
+                    break;
+                case "test2":
+                    carAIs.put(playerKey, new Test2CarAI());
+                    break;
+                default:
+                    carAIs.put(playerKey, new SimpleCarAI());
+                    break;
+            }
+            System.out.println("Set " + playerKey + " AI to: " + aiName);
+
+            // Сбрасываем примененные характеристики для этого игрока
+            statsApplied.remove(playerKey);
+
+        } catch (Exception e) {
+            System.err.println("Error setting AI for " + playerKey + ": " + e.getMessage());
+            carAIs.put(playerKey, new SimpleCarAI());
+        }
+    }
+
+    private void applyAITankStats(CarAI ai, Car car) {
+        try {
+            System.out.println("🎯 ===== APPLYING STATS FOR " + car.getName() + " =====");
+
+            int range = ai.getShootingRange();
+            int speed = ai.getMovementSpeed();
+            int fireRate = ai.getFireRate();
+
+            System.out.printf("📊 RAW STATS: Range=%d, Speed=%d, FireRate=%d%n", range, speed, fireRate);
+
+            // ПРИМЕНЯЕМ С ОГРОМНОЙ РАЗНИЦЕЙ (используем примитивные типы)
+            double maxSpeed = 1.0 + (speed - 1) * 4.0;    // 1.0 - 17.0
+            double acceleration = 0.05 + (speed - 1) * 0.2;
+            int bulletLifetime = 500 + (range - 1) * 2000;
+            long shootCooldown = 2500L - (fireRate - 1) * 600L;
+
+            System.out.printf("⚡ APPLYING: Speed=%.1f, Accel=%.3f, Range=%dms, FireRate=%dms%n",
+                    maxSpeed, acceleration, bulletLifetime, shootCooldown);
+
+            // Применяем к танку
+            car.setMaxSpeed(maxSpeed);
+            car.setAcceleration(acceleration);
+            car.setBulletLifetime(bulletLifetime);
+            car.setShootCooldown(shootCooldown);
+
+            System.out.printf("✅ CONFIRMED: %s now has Speed=%.1f, Range=%dms%n",
+                    car.getName(), car.getMaxSpeed(), car.getBulletLifetime());
+
+        } catch (Exception e) {
+            System.err.println("❌ ERROR in applyAITankStats: " + e.getMessage());
+            e.printStackTrace();
+            throw e;
+        }
+    }
+
+    private String getStatsDescription(CarAI ai, Car car) {
+        return String.format("Range=%d→%dms, Speed=%d→%.1f, FireRate=%d→%dms",
+                ai.getShootingRange(), car.getBulletLifetime(),
+                ai.getMovementSpeed(), car.getMaxSpeed(),
+                ai.getFireRate(), car.getShootCooldown());
+    }
+
+    private void applyDefaultStats(Car car) {
+        car.setMaxSpeed(5.0);
+        car.setAcceleration(0.2);
+        car.setBulletLifetime(2000);
+        car.setShootCooldown(1000);
+    }
+
+    private void updateBullets() {
+        // Обновляем все активные пули
+        for (Bullet bullet : bullets) {
+            if (bullet.isActive()) {
+                bullet.update();
+            }
         }
 
         // Проверяем попадания пуль
@@ -122,52 +274,59 @@ public class GameEngine {
 
         // Удаляем неактивные пули
         bullets.removeIf(bullet -> !bullet.isActive());
-
-        System.out.printf("Game updated: P1(%.1f,%.1f) P2(%.1f,%.1f) Bullets: %d%n",
-                player1.getPosition().getX(), player1.getPosition().getY(),
-                player2.getPosition().getX(), player2.getPosition().getY(),
-                bullets.size());
-    }
-
-    private void updateBullets() {
-        for (Bullet bullet : bullets) {
-            if (bullet.isActive()) {
-                bullet.update();
-            }
-        }
     }
 
     private void checkBulletHits() {
         Iterator<Bullet> iterator = bullets.iterator();
+        int hitsChecked = 0;
+
         while (iterator.hasNext()) {
             Bullet bullet = iterator.next();
             if (!bullet.isActive()) continue;
 
+            hitsChecked++;
+
             for (Map.Entry<String, Car> entry : cars.entrySet()) {
                 Car car = entry.getValue();
-                // Пуля не должна попадать в своего владельца
-                if (bullet.getOwner() == car) continue;
 
-                if (checkBulletHit(bullet, car)) {
+                // Пуля не должна попадать в своего владельца
+                if (bullet.getOwner() == car) {
+                    continue;
+                }
+
+                double distance = calculateDistance(bullet.getPosition(), car.getPosition());
+                boolean isHit = distance < 25; // Радиус попадания
+
+                // Детальное логирование для отладки
+                if (distance < 50) {
+                    System.out.printf("💥 Checking %s: distance=%.1f, hit=%s%n",
+                            entry.getKey(), distance, isHit);
+                }
+
+                if (isHit) {
                     car.takeDamage((int) bullet.getDamage());
-                    bullet.deactivate();
-                    System.out.println(entry.getKey() + " hit! Health: " + car.getHealth());
+                    bullet.setActive(false);
+                    System.out.printf("🔴 DIRECT HIT! %s took %d damage, health: %d%n",
+                            entry.getKey(), (int) bullet.getDamage(), car.getHealth());
 
                     if (!car.isAlive()) {
-                        System.out.println(entry.getKey() + " destroyed!");
+                        System.out.printf("💀 %s DESTROYED!%n", entry.getKey());
                     }
                     break;
                 }
             }
         }
+
+        if (hitsChecked > 0) {
+            System.out.printf("🎯 Checked %d bullets for hits%n", hitsChecked);
+        }
     }
 
-    private boolean checkBulletHit(Bullet bullet, Car car) {
-        double distance = calculateDistance(
-                bullet.getPosition(),
-                car.getPosition()
-        );
-        return distance < CAR_RADIUS;
+    private double calculateDistance(Position p1, Position p2) {
+        if (p1 == null || p2 == null) return Double.MAX_VALUE;
+        double dx = p1.getX() - p2.getX();
+        double dy = p1.getY() - p2.getY();
+        return Math.sqrt(dx * dx + dy * dy);
     }
 
     private void applyNonShootAction(Car car, CarAction action) {
@@ -197,18 +356,29 @@ public class GameEngine {
     private boolean checkCollision(Car car1, Car car2) {
         if (car1 == null || car2 == null) return false;
 
-        double distance = calculateDistance(
-                car1.getPosition(),
-                car2.getPosition()
-        );
+        double distance = calculateDistance(car1.getPosition(), car2.getPosition());
+        boolean collision = distance < 40;
 
-        return distance < CAR_RADIUS * 2;
+        if (collision) {
+            System.out.printf("🚗 Collision! Distance=%.1f%n", distance);
+        }
+
+        return collision;
     }
 
-    private double calculateDistance(Position p1, Position p2) {
-        double dx = p1.getX() - p2.getX();
-        double dy = p1.getY() - p2.getY();
-        return Math.sqrt(dx * dx + dy * dy);
+    private void logTankStats() {
+        Car player1 = cars.get("player1");
+        Car player2 = cars.get("player2");
+
+        if (player1 != null && player2 != null) {
+            // Логируем раз в 10 обновлений чтобы не спамить
+            if (System.currentTimeMillis() % 10 == 0) {
+                System.out.printf("🎯 STATS - P1: speed=%.1f/%.1f, health=%d | P2: speed=%.1f/%.1f, health=%d | Bullets: %d%n",
+                        player1.getSpeed(), player1.getMaxSpeed(), player1.getHealth(),
+                        player2.getSpeed(), player2.getMaxSpeed(), player2.getHealth(),
+                        bullets.size());
+            }
+        }
     }
 
     public Map<String, Object> getGameState() {
@@ -217,7 +387,6 @@ public class GameEngine {
         Car player1 = cars.get("player1");
         Car player2 = cars.get("player2");
 
-        // Всегда возвращаем данные о танках, даже убитых
         if (player1 != null) {
             state.put("player1", Map.of(
                     "x", player1.getPosition().getX(),
@@ -227,6 +396,7 @@ public class GameEngine {
                     "alive", player1.isAlive(),
                     "name", player1.getName(),
                     "speed", player1.getSpeed(),
+                    "maxSpeed", player1.getMaxSpeed(),
                     "canShoot", player1.canShoot()
             ));
         }
@@ -240,6 +410,7 @@ public class GameEngine {
                     "alive", player2.isAlive(),
                     "name", player2.getName(),
                     "speed", player2.getSpeed(),
+                    "maxSpeed", player2.getMaxSpeed(),
                     "canShoot", player2.canShoot()
             ));
         }
@@ -268,48 +439,10 @@ public class GameEngine {
         cars.clear();
         carAIs.clear();
         bullets.clear();
+        statsApplied.clear();
     }
 
     public boolean isGameRunning() {
         return gameRunning;
-    }
-
-    public void setPlayerAI(int playerNumber, String aiName) {
-        String playerKey = playerNumber == 1 ? "player1" : "player2";
-
-        if (aiName.startsWith("custom_")) {
-            // Это кастомный AI
-            String customAIName = aiName.substring(7); // Убираем "custom_" префикс
-            CarAI customAI = customAIManager.getCustomAI(customAIName);
-            if (customAI != null) {
-                carAIs.put(playerKey, customAI);
-                System.out.println("Set " + playerKey + " AI to custom: " + customAIName);
-            } else {
-                System.out.println("Custom AI not found: " + customAIName + ", using default");
-                carAIs.put(playerKey, new SimpleCarAI());
-            }
-        } else {
-            // Это встроенный AI
-            switch (aiName) {
-                case "aggressive":
-                    carAIs.put(playerKey, new AggressiveCarAI());
-                    break;
-                case "defensive":
-                    carAIs.put(playerKey, new DefensiveCarAI());
-                    break;
-                case "sniper":
-                    carAIs.put(playerKey, new SniperCarAI());
-                    break;
-                default:
-                    carAIs.put(playerKey, new SimpleCarAI());
-                    break;
-            }
-            System.out.println("Set " + playerKey + " AI to: " + aiName);
-        }
-    }
-
-    // Альтернативный метод для установки AI по имени
-    public void setPlayerAI(String playerKey, String aiName) {
-        setPlayerAI(playerKey.equals("player1") ? 1 : 2, aiName);
     }
 }

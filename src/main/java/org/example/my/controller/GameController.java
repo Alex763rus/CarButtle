@@ -13,24 +13,19 @@ public class GameController {
     private GameEngine gameEngine;
 
     @PostMapping("/start")
-    public Map<String, Object> startGame(@RequestBody(required = false) Map<String, Object> requestData) {
+    public Map<String, Object> startGame(@RequestBody(required = false) Map<String, String> requestData) {
         gameEngine.initializeGame();
 
         // Если переданы данные о выборе AI, применяем их
         if (requestData != null) {
-            String player1AI = (String) requestData.get("player1AI");
-            String player2AI = (String) requestData.get("player2AI");
-            String customAI = (String) requestData.get("customAI");
+            String player1AI = requestData.get("player1AI");
+            String player2AI = requestData.get("player2AI");
 
             if (player1AI != null && !player1AI.isEmpty()) {
                 gameEngine.setPlayerAI(1, player1AI);
             }
             if (player2AI != null && !player2AI.isEmpty()) {
                 gameEngine.setPlayerAI(2, player2AI);
-            }
-            // Для обратной совместимости
-            if (customAI != null && !customAI.isEmpty()) {
-                gameEngine.setPlayerAI(1, customAI);
             }
         }
 

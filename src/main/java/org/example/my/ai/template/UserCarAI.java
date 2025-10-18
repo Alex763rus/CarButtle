@@ -1,44 +1,83 @@
-// UserCarAI.java - безопасный шаблон
 package org.example.my.ai.template;
 
 import org.example.my.model.Bullet;
 import org.example.my.model.Car;
 import org.example.my.model.CarAction;
-import org.example.my.model.Position;
 
 import java.util.Collection;
 
-public class UserCarAI implements org.example.my.ai.CarAI {
+/**
+ * ШАБЛОН для создания своего AI
+ * Наследуйтесь от BaseCarAI и используйте готовые методы!
+ */
+public class UserCarAI extends BaseCarAI {
+
+    // === ХАРАКТЕРИСТИКИ ===
 
     @Override
-    public CarAction decideAction(Car myCar, Car opponentCar, Collection<Bullet> bullets) {
-        // Если наш танк мертв - ничего не делаем
-        if (!myCar.isAlive()) {
-            return new CarAction(CarAction.ActionType.IDLE);
-        }
+    public int getShootingRange() {
+        return 4; // 1-5 очков
+    }
 
-        // Если противник мертв - ищем другую цель или останавливаемся
-        if (opponentCar == null || !opponentCar.isAlive()) {
-            return new CarAction(CarAction.ActionType.IDLE);
-        }
-        // Всегда проверяем на null и валидность
-        if (myCar == null || !myCar.isAlive() || opponentCar == null || !opponentCar.isAlive()) {
-            return new CarAction(CarAction.ActionType.IDLE);
+    @Override
+    public int getMovementSpeed() {
+        return 3; // 1-5 очков
+    }
+
+    @Override
+    public int getFireRate() {
+        return 3; // 1-5 очков
+    }
+
+    // === ВАША ТАКТИКА ===
+
+    @Override
+    protected CarAction decideTankAction(Car myCar, Car opponentCar, Collection<Bullet> bullets) {
+        if (!myCar.isAlive() || opponentCar == null || !opponentCar.isAlive()) {
+            return idle();
         }
 
         try {
-            // ВАШ КОД ЗДЕСЬ
-            // Пример: всегда двигаться вперед
-            return new CarAction(CarAction.ActionType.MOVE_FORWARD, 0.5);
+            // Используем готовые методы из BaseCarAI!
+            double distance = getDistanceToEnemy(myCar, opponentCar);
+            double angleDiff = getAngleDifference(myCar, opponentCar);
+
+            // Ваша логика здесь...
+            if (shouldEvadeBullet(myCar, bullets, 50)) {
+                Bullet nearestBullet = getNearestEnemyBullet(myCar, bullets);
+                return evadeBullet(myCar, nearestBullet);
+            }
+
+            if (shouldShoot(myCar, opponentCar, 25)) {
+                return shoot();
+            }
+
+            if (distance > getOptimalShootingDistance()) {
+                return moveToEnemy(myCar, opponentCar);
+            }
+
+            return maneuver();
 
         } catch (Exception e) {
-            // В случае ошибки возвращаем безопасное действие
-            return new CarAction(CarAction.ActionType.IDLE);
+            return idle();
+        }
+    }
+
+    // Ваш собственный метод
+    private CarAction maneuver() {
+        // Случайное маневрирование
+        double rand = Math.random();
+        if (rand < 0.3) {
+            return turnLeft(0.4);
+        } else if (rand < 0.6) {
+            return turnRight(0.4);
+        } else {
+            return moveForward(0.3);
         }
     }
 
     @Override
     public String getAIName() {
-        return "My Custom AI"; // Всегда возвращаем строку, никогда null!
+        return "My Custom Tank";
     }
 }

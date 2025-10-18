@@ -11,20 +11,28 @@ import lombok.AllArgsConstructor;
 @AllArgsConstructor
 public class Bullet {
     @Builder.Default
-    private double x = 0;
+    private double x = 0.0;
+
     @Builder.Default
-    private double y = 0;
+    private double y = 0.0;
+
     @Builder.Default
-    private double angle = 0;
+    private double angle = 0.0;
+
     @Builder.Default
-    private double speed = 10.0;
+    private double speed = 4.0;
+
     @Builder.Default
-    private double damage = 25;
+    private double damage = 25.0;
+
     @Builder.Default
-    private int lifetime = 2000; // 2 seconds
+    private int lifetime = 2000;
+
     private Car owner;
+
     @Builder.Default
     private long creationTime = System.currentTimeMillis();
+
     @Builder.Default
     private boolean active = true;
 
@@ -50,13 +58,24 @@ public class Bullet {
         return new Position(x, y, angle);
     }
 
-    // Добавляем метод deactivate()
     public void deactivate() {
         this.active = false;
     }
 
-    // Альтернативно можно использовать setActive(false)
-    public void setActive(boolean active) {
-        this.active = active;
+    // РУЧНО ДОБАВИМ ГЕТТЕР
+    public boolean isActive() {
+        return active;
+    }
+
+    public double getX() {
+        return x;
+    }
+
+    public double getY() {
+        return y;
+    }
+
+    public double getAngle() {
+        return angle;
     }
 }

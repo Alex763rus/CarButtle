@@ -37,6 +37,21 @@ public class DynamicCarAIImpl implements DynamicCarAI {
     }
 
     @Override
+    public int getShootingRange() {
+        return 3;
+    }
+
+    @Override
+    public int getMovementSpeed() {
+        return 3;
+    }
+
+    @Override
+    public int getFireRate() {
+        return 4;
+    }
+
+    @Override
     public CarAction decideAction(Car myCar, Car opponentCar, Collection<Bullet> bullets) {
         // Если наш танк мертв - ничего не делаем
         if (!myCar.isAlive()) {
