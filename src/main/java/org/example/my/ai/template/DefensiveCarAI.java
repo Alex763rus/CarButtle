@@ -27,10 +27,6 @@ public class DefensiveCarAI extends BaseCarAI {
 
     @Override
     protected CarAction decideTankAction(Car myCar, Car opponentCar, Collection<Bullet> bullets) {
-        if (!myCar.isAlive() || opponentCar == null || !opponentCar.isAlive()) {
-            return idle();
-        }
-
         // Агрессивная тактика - всегда двигаться к противнику и стрелять
         double distance = getDistanceToEnemy(myCar, opponentCar);
 

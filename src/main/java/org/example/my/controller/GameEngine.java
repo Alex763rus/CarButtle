@@ -223,7 +223,7 @@ public class GameEngine {
             System.out.printf("📊 RAW STATS: Range=%d, Speed=%d, FireRate=%d%n", range, speed, fireRate);
 
             // ПРИМЕНЯЕМ С ОГРОМНОЙ РАЗНИЦЕЙ (используем примитивные типы)
-            double maxSpeed = 1.0 + (speed - 1) * 4.0;    // 1.0 - 17.0
+            double maxSpeed = 1.0 + (speed - 1) * 1.25;    // 1.0 - 6.0
             double acceleration = 0.05 + (speed - 1) * 0.2;
             int bulletLifetime = 500 + (range - 1) * 2000;
             long shootCooldown = 2500L - (fireRate - 1) * 600L;

@@ -12,25 +12,25 @@ public class Test2CarAI extends BaseCarAI {
 
     @Override
     public int getShootingRange() {
-        return 1;
+        return 3;
     }
 
     @Override
     public int getMovementSpeed() {
-        return 1;
+        return 3;
     }
 
     @Override
     public int getFireRate() {
-        return 1;
+        return 3;
     }
 
     @Override
     protected CarAction decideTankAction(Car myCar, Car opponentCar, Collection<Bullet> bullets) {
-        if (!myCar.isAlive() || opponentCar == null || !opponentCar.isAlive()) {
-            return idle();
-        }
-        return moveForward(1.0);
+//        if (shouldShoot(myCar, opponentCar, 20)) {
+            return shoot();
+//        }
+//        return moveForward(1.0);
         // Используем готовые методы из BaseCarAI
 //        double distance = getDistanceToEnemy(myCar, opponentCar);
 //        double angleDiff = getAngleDifference(myCar, opponentCar);
@@ -41,10 +41,6 @@ public class Test2CarAI extends BaseCarAI {
 //            return evadeBullet(myCar, nearestBullet);
 //        }
 //
-//        // Стреляем если можем
-//        if (shouldShoot(myCar, opponentCar, 20)) {
-//            return shoot();
-//        }
 //
 //        // Двигаемся к противнику
 //        if (Math.abs(angleDiff) > 15) {

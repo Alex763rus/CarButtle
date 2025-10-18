@@ -12,25 +12,22 @@ public class TestCarAI extends BaseCarAI {
 
     @Override
     public int getShootingRange() {
-        return 3;
+        return 1;
     }
 
     @Override
     public int getMovementSpeed() {
-        return 3;
+        return 1;
     }
 
     @Override
     public int getFireRate() {
-        return 4;
+        return 1;
     }
 
     @Override
     protected CarAction decideTankAction(Car myCar, Car opponentCar, Collection<Bullet> bullets) {
-        if (!myCar.isAlive() || opponentCar == null || !opponentCar.isAlive()) {
-            return idle();
-        }
-        return moveForward(1.0);
+        return shoot();
         // Используем готовые методы из BaseCarAI
 //        double distance = getDistanceToEnemy(myCar, opponentCar);
 //        double angleDiff = getAngleDifference(myCar, opponentCar);

@@ -58,11 +58,6 @@ public class AIController {
                 @Override
                 public CarAction decideAction(Car myCar, Car opponentCar, Collection<Bullet> bullets) {
                     // ВАШ КОД ЗДЕСЬ
-                    // Всегда проверяем на null и валидность
-                    if (myCar == null || !myCar.isAlive() || opponentCar == null || !opponentCar.isAlive()) {
-                        return new CarAction(CarAction.ActionType.IDLE);
-                    }
-                    
                     try {
                         // Пример: всегда двигаться вперед и иногда стрелять
                         double distance = Math.sqrt(

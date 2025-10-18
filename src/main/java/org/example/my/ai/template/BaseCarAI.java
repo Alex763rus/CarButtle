@@ -14,8 +14,6 @@ import java.util.Collection;
  */
 public abstract class BaseCarAI implements CarAI {
 
-    // === АБСТРАКТНЫЕ МЕТОДЫ ДЛЯ РЕАЛИЗАЦИИ ===
-
     /**
      * Основная логика AI - должен быть реализован в дочернем классе
      */
@@ -25,7 +23,9 @@ public abstract class BaseCarAI implements CarAI {
 
     @Override
     public final CarAction decideAction(Car myCar, Car opponentCar, Collection<Bullet> bullets) {
-        // Можно добавить общую логику здесь (например, применение характеристик)
+        if (!myCar.isAlive() || opponentCar == null || !opponentCar.isAlive()) {
+            return idle();
+        }
         return decideTankAction(myCar, opponentCar, bullets);
     }
 
@@ -55,8 +55,6 @@ public abstract class BaseCarAI implements CarAI {
     protected final boolean isAimingAtEnemy(Car myCar, Car enemyCar, double tolerance) {
         return Math.abs(getAngleDifference(myCar, enemyCar)) < tolerance;
     }
-
-// В класс BaseCarAI добавьте эти методы если их нет:
 
     protected final Bullet getNearestEnemyBullet(Car myCar, Collection<Bullet> bullets) {
         Bullet nearest = null;

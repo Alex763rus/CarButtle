@@ -27,10 +27,6 @@ public class SimpleCarAI extends BaseCarAI {
 
     @Override
     protected CarAction decideTankAction(Car myCar, Car opponentCar, Collection<Bullet> bullets) {
-        if (!myCar.isAlive() || opponentCar == null || !opponentCar.isAlive()) {
-            return idle();
-        }
-
         // Используем готовые методы из BaseCarAI
         double distance = getDistanceToEnemy(myCar, opponentCar);
         double angleDiff = getAngleDifference(myCar, opponentCar);

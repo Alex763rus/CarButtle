@@ -32,10 +32,6 @@ public class SniperCarAI implements CarAI {
 
     @Override
     public CarAction decideAction(Car myCar, Car opponentCar, Collection<Bullet> bullets) {
-        if (!myCar.isAlive() || opponentCar == null || !opponentCar.isAlive()) {
-            return new CarAction(CarAction.ActionType.IDLE);
-        }
-
         double distance = calculateDistance(myCar.getPosition(), opponentCar.getPosition());
         double angleToOpponent = calculateAngleToTarget(myCar.getPosition(), opponentCar.getPosition());
         double angleDiff = normalizeAngle(angleToOpponent - myCar.getPosition().getAngle());

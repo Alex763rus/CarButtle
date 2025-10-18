@@ -101,8 +101,8 @@ public class Car {
         if (canShoot()) {
             lastShotTime = currentTime;
 
-            // Скорость пули зависит от дальности выстрела
-            double bulletSpeed = 3.0 + (bulletLifetime - 1500) / 1125 * 6.0;
+            // ПОСТОЯННАЯ СКОРОСТЬ ПУЛЬ
+            double bulletSpeed = 6.0; // Все пули летят с одинаковой скоростью
 
             double radianAngle = Math.toRadians(position.getAngle());
             double startX = position.getX() + Math.cos(radianAngle) * 25;

@@ -33,10 +33,6 @@ public class UserCarAI extends BaseCarAI {
 
     @Override
     protected CarAction decideTankAction(Car myCar, Car opponentCar, Collection<Bullet> bullets) {
-        if (!myCar.isAlive() || opponentCar == null || !opponentCar.isAlive()) {
-            return idle();
-        }
-
         try {
             // Используем готовые методы из BaseCarAI!
             double distance = getDistanceToEnemy(myCar, opponentCar);
